@@ -1,0 +1,90 @@
+df <- data.frame(id = 1:4,                       # integer values
+                 score = c(95.5, 87.0, 78.2, 88.8),  # numeric values
+                 name = c("Alice", "Bob", "Charlie", "David"), # names as chars
+                 passed = c(TRUE, TRUE, FALSE, TRUE),  # logical values
+                 grade = factor(c("A", "B", "C", "B")) # factor
+                )
+
+str(df)
+
+library(fivethirtyeight)
+data("bad_drivers")
+
+head(bad_drivers)
+summary(bad_drivers)
+
+library(ggplot2)
+
+
+
+
+ggplot(bad_drivers, aes(x = state, y = insurance_premiums, fill = state)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Insurance Premiums by State",
+    x = "State",
+    y = "Insurance Premiums"
+  ) +
+  theme(axis.text.x = element_blank(),  
+        axis.ticks.x = element_blank(),    
+        legend.position = "right") 
+
+# code for the last question
+
+library(fivethirtyeight)
+library(dplyr)
+
+data("foul_balls")
+
+
+head(foul_balls)
+
+colnames(foul_balls)
+
+#filtering rows based on condition named "Fly" type of hit
+foul_only <- foul_balls %>%
+  filter(type_of_hit == "Fly")
+
+head(foul_only)
+
+#running a select query to get few columns
+foul_selected <- foul_only %>%
+  select(matchup, game_date, exit_velocity)
+
+head(foul_selected)
+
+
+#flagging command for exit velocity > 50 - adds a bool based on the condition
+foul_mutated <- foul_selected %>%
+  mutate(high_speed = exit_velocity > 50)
+
+head(foul_mutated)
+
+#sorting by exit velocity ( descending)
+foul_arranged <- foul_mutated %>%
+  arrange(desc(exit_velocity))
+head(foul_arranged)
+
+#trying for the game_date column
+foul_arranged <- foul_mutated %>%
+  arrange(desc(game_date))
+
+head(foul_arranged)
+
+
+#Here I am using group by to reduce multiple same match ups to a single
+#row. The average velocity over multiple matches is computed for each match up
+
+foul_summary <- foul_mutated %>%
+  group_by(matchup) %>%
+  summarize(
+    avg_exit_velocity = mean(exit_velocity, na.rm = TRUE),
+    hit_count = n() # this counts the number of columns merged in the group
+  )
+
+head(foul_summary)
+
+
+
+
+
