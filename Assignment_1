@@ -1,0 +1,64 @@
+---
+title: "Getting Started Fall 2025"
+execute:
+  echo: true
+format:
+  html:
+    fig-width: 6
+    fig-height: 4
+    out-width: 60%
+    embed-resources: true
+---
+
+You will be working together to get up to speed on the "10 Essentials" found here: https://edav.info/learning_R.html
+
+### 1. Meet your group
+
+Who are the members of your group? Tell me a bit about everyone. Where and when did you meet to work on this assignment? Include a group selfie or (Zoom screenshot). 
+
+### 2. Install R and RStudio
+
+If they're already installed, update to the latest versions. Run this code:
+
+```{r}
+R.version$version.string
+```
+
+Run this line *in the Console* and copy and paste the results below.
+
+`rstudioapi::getVersion()`
+
+
+### 3. Get comfortable with RStudio.
+Install the **tidyverse** collection of packages as well as **devtools**. Run this code:
+
+```{r}
+find.package("tidyverse")
+find.package("devtools")
+```
+
+### 4. Nuts and Bolts
+
+Get comfortable with vectors and data frames. Create a data frame called `df` below with columns that are each a different data type: integer, numeric, character, logical, and factor. Run the code:
+
+```{r}
+# Add your data frame here
+ 
+str(df)
+```
+
+### 5. Make some graphs with ggplot2
+
+Use data from the *bad_drivers* dataset in the **fivethirtyeight** package.
+
+No rules... have fun!
+
+### 6. Practice using the main **dplyr** verbs for data transformation.
+Try out the following `filter()`, `select()`, `mutate()`, `arrange()`, `group_by` and `summarize()` using data from the *foul_balls* dataset in the **fivethirtyeight** package.
+
+
+### 7. Summary
+
+Describe any questions / issues that came up and the solutions. 
+
+Describe AI use, including screenshots, model names/versions as relevant. What helped? What didn't?
