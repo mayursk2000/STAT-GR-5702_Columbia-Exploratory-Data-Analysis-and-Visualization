@@ -1,0 +1,198 @@
+---
+title: "Getting Started Fall 2025"
+execute:
+  echo: true
+format:
+  html:
+    fig-width: 6
+    fig-height: 4
+    out-width: 60%
+    embed-resources: true
+---
+## 1. Meet our group
+
+- **Members**: Diya Bedi,Mayur Kulkarni,Rushil Patra,Selina Park 
+- **When/where we met**: We all met at the DSI lounge after the class
+
+**Group Picture**  
+
+
+![](group_picture.jpg){fig-alt="Group selfie" width=60%}
+
+---
+
+## 2. Install R and RStudio
+
+R version:
+
+```{r}
+R.version$version.string
+```
+
+---
+
+## 3. Getting comfortable with RStudio
+
+ Package installation paths:
+
+```{r}
+find.package("tidyverse")
+find.package("devtools")
+```
+
+
+Load the packages we’ll use below:
+
+```{r}
+library(tidyverse)
+library(fivethirtyeight)
+library(lubridate)
+```
+
+---
+
+## 4. Nuts and Bolts:
+
+Created a data frame `df` with multiple data types and inspected its structure:
+
+```{r}
+df <- tibble(
+  id = 1:4,                                 
+  value = c(3.14, 2.71, 1.41, 0.58),         
+  name = c("Ada", "Grace", "Edsger", "Barbara"), 
+  passed = c(TRUE, TRUE, FALSE, TRUE),       
+  group = factor(c("A", "B", "A", "C"))
+)
+
+str(df)
+```
+
+---
+
+## 5. Graphs with **ggplot2** using `bad_drivers`
+
+Peek at the data and its columns:
+
+```{r}
+glimpse(bad_drivers)
+```
+
+### Premiums vs. Alcohol-related collisions Scatter + linear fit
+
+
+```{r}
+# Relationship between alcohol-related collisions and insurance premiums
+bad_drivers %>%
+  ggplot(aes(x = perc_alcohol, y = insurance_premiums)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    title = "Are higher alcohol-related collisions associated with higher premiums?",
+    x = "% of fatal-collision drivers who were alcohol-impaired",
+    y = "Car insurance premiums ($)"
+  )
+```
+
+### Top 10 states by insurance losses
+
+```{r}
+bad_drivers %>%
+  slice_max(losses, n = 10) %>%
+  arrange(losses) %>%
+  ggplot(aes(x = losses, y = reorder(state, losses))) +
+  geom_segment(aes(xend = 0, yend = reorder(state, losses))) +
+  geom_point(size = 2.5) +
+  labs(
+    title = "Top 10 states by insurance losses per insured driver",
+    x = "Losses ($ per insured driver)", y = NULL
+  )
+```
+
+### Speeding vs. Fatal-collision rate, sized by no previous accidents
+
+```{r}
+bad_drivers %>%
+  ggplot(aes(
+    x = perc_speeding,
+    y = num_drivers,
+    size = perc_no_previous
+  )) +
+  geom_point(alpha = 0.8) +
+  labs(
+    title = "Speeding % vs. Fatal-collision rate",
+    x = "% of fatal-collision drivers who were speeding",
+    y = "Drivers in fatal collisions per billion miles",
+    size = "% had no previous accidents"
+  )
+```
+
+### Insurance Premiums by State
+```{r}
+ggplot(bad_drivers, aes(x = state, y = insurance_premiums, fill = state)) +
+  geom_bar(stat = "identity") +
+  labs(
+    x = "State",
+    y = "Insurance Premiums"
+  ) +
+  theme(axis.text.x = element_blank(),  
+        axis.ticks.x = element_blank(),    
+        legend.position = "right")
+```
+## 6. Practice **dplyr** verbs with `foul_balls`
+
+Dataset:
+
+```{r}
+glimpse(foul_balls)
+```
+
+Extracting date parts and keeping a few columns:
+
+```{r}
+foul_balls %>%
+  select(matchup, game_date, exit_velocity, predicted_zone, camera_zone) %>%
+  mutate(
+    game_date = as.Date(game_date),
+    wday = wday(game_date, label = TRUE)
+  ) %>%
+  head()
+```
+
+Average exit velocity by predicted zone and hit type:
+
+```{r}
+foul_balls %>%
+  group_by(type_of_hit, predicted_zone) %>%
+  summarize(mean_ev = mean(exit_velocity, na.rm = TRUE), .groups = "drop") %>%
+  arrange(desc(mean_ev))
+```
+
+How often did the predicted zone match the camera-confirmed zone?
+
+```{r}
+foul_balls %>%
+  mutate(match = predicted_zone == camera_zone) %>%
+  summarize(accuracy = mean(match, na.rm = TRUE))
+```
+
+---
+
+## 7. Summary
+
+**Issues we faced**:
+
+
+1)Setting up R and installing the packages.
+
+2)Structuring the qmd file and figuring out how it works.
+
+3) We had to spend considerable time understanding R templates for plots while solving the bad drivers problem. We understood the utility of each parameter by running multiple iterations of the script.
+
+4) Filters had to be looked one by one for their functionality as the names are not very intuitive.
+
+- **AI usage**: 
+
+We used OpenAI's Chatgpt 5 thinking model to help us structure the qmd file and to debug the code and installation issues.
+
+![](chatgpt.JPG){fig-alt="ChatGPT usage" width=60%}
+
