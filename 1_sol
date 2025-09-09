@@ -29,6 +29,18 @@ ggplot(bad_drivers, aes(x = state, y = insurance_premiums, fill = state)) +
         axis.ticks.x = element_blank(),    
         legend.position = "right") 
 
+#this plot is to compare states vs losses incurred in USD due to bad drivers. The bars are coloured to indicate the % occurences of speeding
+ggplot(bad_drivers, aes(x = state, y = losses, fill = perc_speeding)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Losses by State (Colored by % Speeding)",
+    x = "State",
+    y = "Losses (USD)",
+    fill = "% Speeding"
+  ) +
+  theme(axis.text.x = element_blank(),  
+        legend.position = "right")
+
 # code for the last question
 
 library(fivethirtyeight)
