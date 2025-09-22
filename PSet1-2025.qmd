@@ -1,0 +1,276 @@
+---
+title: "EDAV Problem Set 1 Fall 2025"
+author: [ADD YOUR NAMES AND UNIs HERE]
+execute:
+  echo: true
+format:
+  html:
+    fig-width: 6
+    fig-height: 4
+    embed-resources: true
+---
+
+### IMPORTANT NOTES FOR ALL QUESTIONS
+
+See "Assignment Guidelines" under Pages in CourseWorks for instructions that apply to all assignments. (The guidelines will grow as the semester progresses so check back for each new assignment.)
+
+Read *Graphical Data Analysis with R*, Ch. 3, 4, 5
+
+### 1. Nutrition
+
+[8 points]
+
+Data: "food.csv" file in /data folder in CourseWorks
+
+a)  Draw multiple horizontal boxplots of `calories`, by `restaurant`. What do you observe?
+
+# Name: Mayur Suhas Kulkarni
+# Date: Sept 2025
+
+#Loading the required libraries in R
+
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(stringr)
+
+#loading the data file
+food_data <- read_csv("food.csv")
+
+# Horizontal boxplots
+ggplot(food_data, aes(x = calories, y = reorder(restaurant, calories, median))) +
+  geom_boxplot(fill = "lightblue", alpha = 0.7) +
+  labs(
+    title = "Distribution of Calories by Restaurant",
+    x = "Calories per Item",
+    y = "Restaurant Name"
+  ) +
+  theme_bw() +
+  theme(
+    panel.grid.major = element_line(color = "grey80"),
+    panel.grid.minor = element_line(color = "grey90")
+  )
+  
+Observations: 
+i) Chick Fil-A has the lowest median calorie count.
+
+ii) Subway shows a wider inter quartile range in calories compared to others.
+
+iii) Mc Donalds has calorie has the most number of calorie outliers in their menu. Max calorie item is present in McD. Contorary to this, Dairy Queen has the minimum calorie item in the dataset.
+
+
+b)  Draw histograms, faceted by `restaurant`, for the same data. Describe one insight that was not visible in the boxplots.
+
+# Name: Mayur Suhas Kulkarni
+# Date: Sept 2025
+
+#Loading the required libraries in R
+
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(stringr)
+
+#loading the data file
+food_data <- read_csv("food.csv")
+
+ggplot(food_data, aes(x = calories)) +
+  geom_histogram(bins = 25, fill = "steelblue", color = "white", alpha = 0.8) +
+  facet_wrap(~restaurant, scales = "free") +
+  labs(
+    title = "Calorie Histograms by Restaurant",
+    x = "Calories per Item",
+    y = "Count of Items"
+  ) +
+  theme_bw() +
+  theme(
+    panel.grid.major = element_line(color = "grey80"),
+    panel.grid.minor = element_blank()
+  )
+  
+One insight that I observed in the histograms were the multimodal nature of distributions. In Subway's plot, I was able to observe three distinct clusters of items and three respective peaks for the same. ( at ranges around 300, 500 and 900)
+
+
+c) Do crispy items have more calories than grilled items? Use overlapping density curves to compare.
+
+# Assignment_1
+
+# Name: Mayur Suhas Kulkarni
+# Date: Sept 2025
+
+#Loading the required libraries in R
+
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(stringr)
+
+#loading the data file
+food_data <- read_csv("food.csv")
+
+cooking_cmp <- food_data |>
+  filter(str_detect(tolower(item), "crispy|grilled")) |>
+  mutate(
+    method = case_when(
+      str_detect(tolower(item), "crispy") ~ "Crispy",
+      str_detect(tolower(item), "grilled") ~ "Grilled",
+      TRUE ~ NA_character_
+    )
+  ) |>
+  filter(!is.na(method))
+
+ggplot(cooking_cmp, aes(x = calories, fill = method)) +
+  geom_density(alpha = 0.6) +
+  scale_fill_manual(values = c("Crispy" = "orange", "Grilled" = "green")) +
+  labs(
+    title = "Crispy vs. Grilled Calorie Density",
+    x = "Calories per Item",
+    y = "Density",
+    fill = "Cooking Method"
+  ) +
+  theme_bw() +
+  theme(
+    panel.grid.major = element_line(color = "grey80"),
+    panel.grid.minor = element_blank()
+  )
+
+Insight: Density curve for grilled items shows concentration in the lower end of the spectrum, peaking around 450 and has a relatively narrow distribution with respect to the crispy method which has a dual peak at 500 and 800 calories. Also, crispy method of cooking shows a wider distribution range.
+
+Therefore, the crispy items have a relative number of higher calories than the grilled ones.
+
+
+d) Expand on part c) by creating a single ridgeline plot that show the distributions of grilled vs crispy for each restaurant. What do you observe?
+
+# Name: Mayur Suhas Kulkarni
+# Date: Sept 2025
+
+#Loading the required libraries in R
+
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(stringr)
+library(ggridges)
+
+
+#loading the data file
+food_data <- read_csv("food.csv")
+
+ggplot(cooking_cmp, aes(x = calories, y = restaurant, fill = method)) +
+  geom_density_ridges(alpha = 0.7, scale = 0.8) +
+  scale_fill_manual(values = c("Crispy" = "orange", "Grilled" = "green")) +
+  labs(
+    title = "Calorie Distributions of Crispy vs. Grilled by Restaurant",
+    x = "Calories per Item",
+    y = "Restaurant Name",
+    fill = "Cooking Method"
+  ) +
+  theme_bw() +
+  theme(
+    panel.grid.major = element_line(color = "grey80"),
+    panel.grid.minor = element_blank()
+  )
+  
+Sonic and Chick-fil-A appear to specialize in one cooking method over the other . Sonic primarily features crispy items in this comparison, while Chick-fil-A only shows a grilled distribution. Arby's does not have any items matching either crispy or grilled in the dataset.
+
+
+### 2. Temporal Lobes
+
+[8 points]
+
+Data: *mtl* in **openintro** package
+
+a)  Draw two histograms--one with base R and the other with **ggplot2**--of the variable representing the thickness of the subiculum subregion of the medial temporal lobe using the default parameters. What is the default method each uses to determine the number of bins? (For base R, show the calculation for this data.) Which do you think is a better choice for this dataset and why?
+
+b) Draw two histograms of the `age` variable with boundaries at multiples of 5, one right closed and one right open. Every boundary should be labeled (45, 50, 55, etc.)
+
+c)  Add the same parameter value(s) to the code of your plots from part b) so that the result is that the right open and right closed versions are identical. Explain your strategy. 
+
+
+### 3. Soybeans
+
+[8 points]
+
+Data: *australia.soybean* in **agridat** package
+
+a)  Use QQ (quantile-quantile) plots with theoretical normal lines to compare `yield` for the four locations. For which location does the `yield` appear to be closest to a normal distribution?
+
+b)  Draw density histograms with density curves and theoretical normal curves overlaid of `yield` for the four locations.
+
+c)  Perform Shapiro-Wilk tests for normality for `yield` for each location using the `shapiro.test()` function and interpret the results.
+
+d)  Did all of the methods for testing for normality (a, b, and c) produce the same results? Briefly explain.
+
+
+### 4. Doctors
+
+[4 points]
+
+Data: *breslow* dataset in **boot** package
+
+Draw histograms of the age at death for deaths attributed to coronary artery disease among doctors in the *breslow* dataset, faceted on smoking status. 
+
+### 5. Loans
+
+[5 points]
+
+Data: *loans_full_schema* in **openintro** package
+
+a) Use an appropriate graphical technique to describe the distribution of the `loan_amount` variable. What do you observe?
+
+b) Create horizontal boxplots of `loan_amount`, one for each level of `loan_purpose`. Repeat with ridgeline plots. Which do you think is more effective for this data and why?
+
+### 6. House properties
+
+[5 points]
+
+Data: *ames* in the **openintro** package
+
+a) Create a frequency bar chart for the roof styles of the properties.
+
+
+b) Create a frequency bar chart for the variable representing the month in which the property was sold.
+
+
+c) List all the variables that have `Ex` as a factor level. 
+
+d) Create faceted bar charts using `facet_wrap()` to display the frequency distribution of all variables identified in part c).
+
+
+### 7. Pet names
+
+[10 points]
+
+Data: *seattlepets* in the **openintro** package
+
+a) Create separate Cleveland dot plots for the 30 most popular dog names and 30 most popular cat names.
+
+b) Find the 30 most popular names for dogs and cats combined, and create a multidot Cleveland dot plot showing the counts for dogs, cats, and total for each of these 30 names. (One color for dogs, one color for cats, one color for total.) Order the dots by the total count.
+
+c) Create a scatterplot of popular cat names vs. popular dog names. Clearly some names are more "dog" names and some are more "cat" names. Decide on a metric for defining what is a "dog" name, a "cat" name, and a "neutral" name and state it explicity. What is your metric?
+
+d) Create a new variable for type of name ("dog", "cat" or "neutral") and redraw the scatterplot coloring the points by this variable. Label individual points as you see fit (don't label all of them.)
+
+e) What are your most interesting discoveries from this dataset?
+
+### 8. House sizes and prices
+
+[12 points]
+
+Data: *ames* in the **openintro** package
+
+For all, adjust parameters to the levels that provide the best views of the data.
+
+Draw four plots of `price` vs. `area` with the following variations:
+
+a) Scatterplot with density contour lines
+
+b) Hexagonal heatmap of bin counts
+
+c) Describe noteworthy patterns in the data, using the "Movie ratings" example on page 82 (last page of Section 5.3) as a guide.
+
+d) Create scatterplots of `price` vs. `area` faceted by `Neighborhood`. Add best fitting simple linear regression lines and sort the facets by the value of the slope of these lines from low to high. (Use `lm()` to get the slopes.)
+
+e) Is the slope higher in neighborhoods with higher mean housing prices? Present graphical evidence and interpret in the context of this data.
+
+f) Repeat parts d) with the following adjustment: order the faceted plots by $R^2$ from the linear regression of `price` on `area` by `Neighborhood`.  Are the results the same for slope and $R^2$? Explain using examples from the graphs.
