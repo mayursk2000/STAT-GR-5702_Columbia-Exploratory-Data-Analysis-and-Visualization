@@ -1,6 +1,6 @@
 ---
 title: "EDAV Problem Set 1 Fall 2025"
-author: [ADD YOUR NAMES AND UNIs HERE]
+author: Mayur Suhas Kulkarni ( msk2277 )
 execute:
   echo: true
 format:
@@ -28,7 +28,7 @@ a)  Draw multiple horizontal boxplots of `calories`, by `restaurant`. What do yo
 # Date: Sept 2025
 
 #Loading the required libraries in R
-
+```{r}
 library(ggplot2)
 library(dplyr)
 library(readr)
@@ -50,16 +50,17 @@ ggplot(food_data, aes(x = calories, y = reorder(restaurant, calories, median))) 
     panel.grid.major = element_line(color = "grey80"),
     panel.grid.minor = element_line(color = "grey90")
   )
-  
+```  
 Observations: 
 i) Chick Fil-A has the lowest median calorie count.
 
 ii) Subway shows a wider inter quartile range in calories compared to others.
 
-iii) Mc Donalds has calorie has the most number of calorie outliers in their menu. Max calorie item is present in McD. Contorary to this, Dairy Queen has the minimum calorie item in the dataset.
+iii) Mc Donalds has the most number of calorie outliers in their menu. Max calorie item is present in McD. Contorary to this, Dairy Queen has the minimum calorie item in the dataset.
 
 
 b)  Draw histograms, faceted by `restaurant`, for the same data. Describe one insight that was not visible in the boxplots.
+{```}
 
 # Name: Mayur Suhas Kulkarni
 # Date: Sept 2025
@@ -92,7 +93,7 @@ One insight that I observed in the histograms were the multimodal nature of dist
 
 
 c) Do crispy items have more calories than grilled items? Use overlapping density curves to compare.
-
+```{r}
 # Assignment_1
 
 # Name: Mayur Suhas Kulkarni
@@ -133,13 +134,16 @@ ggplot(cooking_cmp, aes(x = calories, fill = method)) +
     panel.grid.major = element_line(color = "grey80"),
     panel.grid.minor = element_blank()
   )
-
+```
 Insight: Density curve for grilled items shows concentration in the lower end of the spectrum, peaking around 450 and has a relatively narrow distribution with respect to the crispy method which has a dual peak at 500 and 800 calories. Also, crispy method of cooking shows a wider distribution range.
 
 Therefore, the crispy items have a relative number of higher calories than the grilled ones.
 
+{change the colors}
 
 d) Expand on part c) by creating a single ridgeline plot that show the distributions of grilled vs crispy for each restaurant. What do you observe?
+
+```{r}
 
 # Name: Mayur Suhas Kulkarni
 # Date: Sept 2025
@@ -170,6 +174,8 @@ ggplot(cooking_cmp, aes(x = calories, y = restaurant, fill = method)) +
     panel.grid.major = element_line(color = "grey80"),
     panel.grid.minor = element_blank()
   )
+
+```
   
 Sonic and Chick-fil-A appear to specialize in one cooking method over the other . Sonic primarily features crispy items in this comparison, while Chick-fil-A only shows a grilled distribution. Arby's does not have any items matching either crispy or grilled in the dataset.
 
@@ -195,11 +201,135 @@ Data: *australia.soybean* in **agridat** package
 
 a)  Use QQ (quantile-quantile) plots with theoretical normal lines to compare `yield` for the four locations. For which location does the `yield` appear to be closest to a normal distribution?
 
+```{r}
+
+library(agridat)
+library(ggplot2)
+library(gridExtra)
+
+# Load data from the dataset
+data("australia.soybean")
+
+## Get locations from the dataset
+locations <- unique(australia.soybean$loc)
+print(locations)
+
+# Here, I am creating QQ plots for each location
+qq_plots <- list()
+
+for(i in 1:length(locations)) {
+  loc_data <- subset(australia.soybean, loc == locations[i])
+  
+  qq_plots[[i]] <- ggplot(loc_data, aes(sample = yield)) +
+    stat_qq(color = "blue") +
+    stat_qq_line(color = "red", linewidth = 1) +
+    labs(title = paste("QQ Plot:", locations[i]),
+         x = "Theoretical Quantiles", 
+         y = "Sample Quantiles") +
+    theme_minimal() +
+    theme(panel.grid.major = element_line(color = "gray90", linetype = "dashed"))
+}
+
+# Display all plots locationwise
+grid.arrange(grobs = qq_plots, ncol = 2, nrow = 2)
+
+
+```
+Here, Brookstead appears to follow the red line and appears to have the least deviation from normal distribution.
+
 b)  Draw density histograms with density curves and theoretical normal curves overlaid of `yield` for the four locations.
+
+```{r}
+library(agridat)
+library(ggplot2)
+library(gridExtra)
+
+data("australia.soybean")
+locations <- unique(australia.soybean$loc)
+
+# Creating density plots at each location
+density_plots <- list()
+
+for(i in 1:length(locations)) {
+  loc_data <- subset(australia.soybean, loc == locations[i])
+  
+  # Calculating the mean and standard deviation 
+  mean_y <- mean(loc_data$yield)
+  sd_y <- sd(loc_data$yield)
+  
+  density_plots[[i]] <- ggplot(loc_data, aes(x = yield)) +
+    # Histogram with density which is drawn
+    geom_histogram(aes(y = after_stat(density)), bins = 12, 
+                   fill = "lightblue", color = "white", alpha = 0.7) +
+    # Actual density curve to be drawn
+    geom_density(color = "blue", size = 1) +
+    # Theoretical normal curve to be drawn
+    stat_function(fun = dnorm, 
+                  args = list(mean = mean_y, sd = sd_y),
+                  color = "red", size = 1, linetype = "dashed") +
+    labs(title = paste("Density Plot:", locations[i]),
+         x = "Yield", y = "Density") +
+    theme_minimal() +
+    theme(panel.grid.major = element_line(color = "gray90", linetype = "dashed"))
+}
+
+grid.arrange(grobs = density_plots, ncol = 2, nrow = 2)
+```
+Here Blue line is the actual data density and the Red dashed line represents theoretical normal density
 
 c)  Perform Shapiro-Wilk tests for normality for `yield` for each location using the `shapiro.test()` function and interpret the results.
 
+```{r}
+library(agridat)
+data("australia.soybean")
+
+locations <- unique(australia.soybean$loc)
+
+for (loc in locations) {
+  y <- australia.soybean$yield[australia.soybean$loc == loc]
+  test <- shapiro.test(y)
+  cat("Location:", loc, "\n")
+  cat("  W =", round(test$statistic, 4),
+      "  p-value =", round(test$p.value, 4), "\n")
+  if (test$p.value > 0.05) {
+    cat("  Interpretation: yield appears NORMAL (fail to reject H₀)\n")
+  } else {
+    cat("  Interpretation: yield appears NON-NORMAL (reject H₀)\n")
+  }
+}
+
+```
+Here, data at Lawes and Brookstead do not show significant deviation from normality. Other two locations deviate.
+
+
 d)  Did all of the methods for testing for normality (a, b, and c) produce the same results? Briefly explain.
+
+When the three methods for testing normality were analyzed, there was agreement seen in 3 out of the 4 locations.
+
+In Lawes:
+
+QQ plot points lie almost exactly on the red line and density curves had observed and theoretical curves ones match closely
+
+p = 0.3279 (>0.05) → fail to reject normality from Shapiro Wilk
+
+Nambour
+
+QQ plot had noticeable tail deviations and density curve method had blue curve skewed relative to red dashed curve.
+
+Also, p = 0.0191 (≤0.05) → reject normality from Shapiro Wilk
+
+RedlandBay
+
+QQ plot had clear curvature away from the line in the upper tail and there was substantial mismatch between observed and normal curves in the density plot.
+
+ p = 0.0004 (≤0.05) → reject normality as per Shapiro Wilk
+
+Brookstead shows a minor disagreement between the visual and statistical estimates:
+
+QQ plot had points track the red line very closely and there was slight mismatch compared to the normal curve in the density plot
+ p = 0.2594 (>0.05) → fail to reject normality as per Shapiro Wilk
+
+Therefore, Visual methods are subjective and can suggest deviations in statistically insginificant regions as well. Evaluation through Shapiro Wilk test would be a better method.
 
 
 ### 4. Doctors
@@ -218,7 +348,125 @@ Data: *loans_full_schema* in **openintro** package
 
 a) Use an appropriate graphical technique to describe the distribution of the `loan_amount` variable. What do you observe?
 
+
+```{r}
+
+#checking out the dataset once
+
+library(openintro)
+library(dplyr)
+library(ggplot2)
+
+data(loans_full_schema)
+
+#exploring the data here and check the schema
+glimpse(loans_full_schema)
+
+#checking skewness and number of unique loan purposes in the data
+skewness_calc <- function(x) {
+  n <- length(x)
+  mean_x <- mean(x)
+  sd_x <- sd(x)
+  skew <- sum((x - mean_x)^3) / (n * sd_x^3)
+  return(skew)
+}
+
+cat("Skewness:", round(skewness_calc(loans_full_schema$loan_amount), 3), "\n")
+
+
+cat("Number of unique loan purposes:", length(unique(loans_full_schema$loan_purpose)), "\n")
+
+#checking loan purposes and their frequencies
+
+table(loans_full_schema$loan_purpose)
+
+#checking for quartile, their inter quartile range and finding outlier points ( at 1.5*(IQR) from Q1 and Q3)
+
+Q1 <- quantile(loans_full_schema$loan_amount, 0.25)
+Q3 <- quantile(loans_full_schema$loan_amount, 0.75)
+IQR <- Q3 - Q1
+cat("number of IQR outliers:", sum(loans_full_schema$loan_amount < Q1 - 1.5*IQR | 
+                        loans_full_schema$loan_amount > Q3 + 1.5*IQR), "\n")
+
+
+
+```
+Few observations from the dataset:
+
+i) Loan amount is a continuous variable and has a large range.
+
+ii) The data shows moderate positive skewness (0.704). Therefore the right tail is extended and lower amounts have more concentration, which can be incorporated in a histogram.
+
+iii) There are no extreme outliers as per IQR method.
+
+This suggests Histogram as a good representation of this data as it reveals modality and gaps in data.
+
+Also, bar chart is eliminated as loan amount is continuous variable. Density plot is a good choice, but not as intutive as an histogram for this purpose. Box plot misses out clustering patterns, but reveals median and quartiles without the distrubution shape.
+
+Histogram code:
+
+```{r}
+# Histogram with appropriate bin selection
+ggplot(loans_full_schema, aes(x = loan_amount)) +
+  geom_histogram(bins = 50, fill = "gold", color = "black", alpha = 0.7) +
+  labs(
+    title = "Distribution of Loan Amounts",
+    subtitle = "Right skew with concentration in lower amounts",
+    x = "Loan Amount ($)",
+    y = "Count"
+  ) +
+  scale_x_continuous(labels = scales::dollar_format()) +
+  theme_bw() +
+  theme(
+    panel.grid.major = element_line(color = "grey80"),
+    panel.grid.minor = element_blank()
+  )
+```
 b) Create horizontal boxplots of `loan_amount`, one for each level of `loan_purpose`. Repeat with ridgeline plots. Which do you think is more effective for this data and why?
+
+```{r}
+
+#horizontal box plots for each loan category ( got the inbuilt currency scaler in library)
+ggplot(loans_full_schema, aes(x = loan_amount, y = reorder(loan_purpose, loan_amount, median))) +
+  geom_boxplot(fill = "lightblue", alpha = 0.7) +
+  labs(
+    title = "Loan Amount Distribution by Purpose (Boxplots)",
+    subtitle = "Ordered by median loan amount",
+    x = "Loan Amount ($)",
+    y = "Loan Purpose"
+  ) +
+  scale_x_continuous(labels = scales::dollar_format()) +
+  theme_bw() +
+  theme(
+    panel.grid.major = element_line(color = "grey80"),
+    panel.grid.minor = element_blank()
+  )
+
+
+library(ggridges)
+
+## code to get the Ridgeline plot for each loan category
+ggplot(loans_full_schema, aes(x = loan_amount, y = reorder(loan_purpose, loan_amount, median), 
+                             fill = loan_purpose)) +
+  geom_density_ridges(alpha = 0.7, scale = 2) +
+  labs(
+    title = "Loan Amount Distribution by Purpose (Ridgeline Plot)",
+    subtitle = "Ordered by median loan amount - shows full distribution shapes",
+    x = "Loan Amount ($)",
+    y = "Loan Purpose"
+  ) +
+  scale_x_continuous(labels = scales::dollar_format()) +
+  theme_bw() +
+  theme(
+    panel.grid.major = element_line(color = "grey80"),
+    panel.grid.minor = element_blank(),
+    legend.position = "none"
+  )
+```
+
+Boxplots provide a good comparison of medians, quartiles, and outlier values for different loan purposes, making it easy to rank purposes by typical loan size and mark extreme values. 
+
+Ridgeline plots reveal each purpose’s full distribution shape—its skewness, tail length, and any multiple peaks, giving better insight into how loan amounts truly differ by purpose.
 
 ### 6. House properties
 
@@ -245,13 +493,155 @@ Data: *seattlepets* in the **openintro** package
 
 a) Create separate Cleveland dot plots for the 30 most popular dog names and 30 most popular cat names.
 
+```{r}
+library(openintro)
+library(ggplot2)
+
+data("seattlepets")
+clean <- subset(seattlepets,
+  !is.na(animal_name) & animal_name != "" &
+  !animal_name %in% c("UNKNOWN","No Name","NO NAME")
+)
+
+# Dog plot to find 30 top dog names
+dog_tab <- sort(table(clean$animal_name[clean$species=="Dog"]), TRUE)
+dog_top <- head(dog_tab, 30)
+ggplot(data.frame(name=names(dog_top), count=as.numeric(dog_top)),
+       aes(x=count, y=reorder(name, count))) +
+  geom_point(color="#1f77b4", size=3) +
+  geom_segment(aes(x=0, xend=count, y=name, yend=name),
+               color="#1f77b4", alpha=0.5) +
+  labs(title="Top 30 Dog Names in Seattle",
+       x="Number of Dogs", y="Dog Name") +
+  theme_light(base_size=12) +
+  theme(panel.grid.major.y=element_blank())
+```
+
+
+```{r}
+# plot to find top 30 cat names
+
+cat_tab <- sort(table(clean$animal_name[clean$species=="Cat"]), TRUE)
+cat_top <- head(cat_tab, 30)
+ggplot(data.frame(name=names(cat_top), count=as.numeric(cat_top)),
+       aes(x=count, y=reorder(name, count))) +
+  geom_point(color="#d62728", size=3) +
+  geom_segment(aes(x=0, xend=count, y=name, yend=name),
+               color="#d62728", alpha=0.5) +
+  labs(title="Top 30 Cat Names in Seattle",
+       x="Number of Cats", y="Cat Name") +
+  theme_light(base_size=12) +
+  theme(panel.grid.major.y=element_blank())
+```
+
 b) Find the 30 most popular names for dogs and cats combined, and create a multidot Cleveland dot plot showing the counts for dogs, cats, and total for each of these 30 names. (One color for dogs, one color for cats, one color for total.) Order the dots by the total count.
 
+
+```{r}
+# Top 30 Pet Names Combined 
+library(ggplot2)
+library(openintro)
+
+data("seattlepets")
+
+pets <- seattlepets |>
+  subset(!is.na(animal_name) &
+           animal_name != "" &
+           !(animal_name %in%
+               c("UNKNOWN","Unknown","No Name","NO NAME")))
+#taking counts of each specie here and merging them
+dog_counts <- as.data.frame(table(
+  pets$animal_name[pets$species == "Dog"]))
+names(dog_counts) <- c("name", "dog_count")
+
+cat_counts <- as.data.frame(table(
+  pets$animal_name[pets$species == "Cat"]))
+names(cat_counts) <- c("name", "cat_count")
+
+all_counts <- merge(dog_counts, cat_counts,
+                    by = "name", all = TRUE)
+all_counts[is.na(all_counts)] <- 0
+all_counts$total <- all_counts$dog_count +
+                    all_counts$cat_count
+
+#taking top 30 combined
+top30 <- head(all_counts[order(-all_counts$total), ], 30)
+
+plot_data <- data.frame(
+  name  = rep(top30$name, 3),
+  count = c(top30$dog_count,
+            top30$cat_count,
+            top30$total),
+  type  = rep(c("Dog", "Cat", "Total"),
+              each = nrow(top30)),
+  total = rep(top30$total, 3)
+)
+
+plot_data$name <- reorder(plot_data$name, plot_data$total)
+
+ggplot(plot_data, aes(x = count, y = name, color = type)) +
+  geom_point(size = 2) +
+  labs(
+    title = "Top 30 Pet Names in Seattle",
+    x = "Count",
+    y = "Pet name"
+  ) +
+  theme_minimal()
+```
 c) Create a scatterplot of popular cat names vs. popular dog names. Clearly some names are more "dog" names and some are more "cat" names. Decide on a metric for defining what is a "dog" name, a "cat" name, and a "neutral" name and state it explicity. What is your metric?
+
+```{r}
+
+# df from part b used to dog percentages
+df$prop_dog <- df$dog / df$total
+
+ggplot(df, aes(x=dog, y=cat)) +
+  geom_point(aes(color=prop_dog), size=2) +
+  scale_color_gradient(low="#d62728", high="#1f77b4", name="Dog Prop") +
+  labs(title="Dog vs Cat Counts by Name",
+       x="Dog Count", y="Cat Count") +
+  theme_light(base_size=12)
+
+
+```
+Metric: A better metric here would be to classify as a dog name if grater than or eq. to 70 percent. If dog name is less than or eq. to 30 percent, its classified as a cat name. Else, we keep it neutral if the count falls in the range in between.
+
 
 d) Create a new variable for type of name ("dog", "cat" or "neutral") and redraw the scatterplot coloring the points by this variable. Label individual points as you see fit (don't label all of them.)
 
+```{r}
+#using the metrics mentioned above
+df$type <- with(df, 
+  ifelse(prop_dog > 0.7, "Dog Name",
+  ifelse(prop_dog < 0.3, "Cat Name","Neutral"))
+)
+# Label top 20 in total
+top20 <- head(df[order(-df$total), ], 20)$name
+df$label <- ifelse(df$name %in% top20, df$name, "")
+
+ggplot(df, aes(x=dog, y=cat, color=type)) +
+  geom_point(size=3, alpha=0.8) +
+  geom_text(aes(label=label), vjust=-0.5, size=3) +
+  scale_color_manual(values=c("Dog Name"="#1f77b4",
+                              "Cat Name"="#d62728",
+                              "Neutral"="#7f7f7f")) +
+  labs(title="Pet Name Popularity by Species",
+       x="Dog Count", y="Cat Count", color="Name Type") +
+  theme_minimal(base_size=12)
+```
+
 e) What are your most interesting discoveries from this dataset?
+
+The plots reveal that a handful of names like Bella, Luna, and Charlie—are universally popular across both dogs and cats. 
+
+Certain names skew strongly toward one species: Buddy, Max, and Cooper are predominantly dog names (>70% dog share) 
+
+Kitty, Tiger, and Cleo are almost exclusively cat names (<30% dog share). 
+
+A middle group of names like Shadow, Lily, and Lucy has balanced appeal (30–70% dog share).
+
+The naming patterns suggest that dog owners tend to choose more traditional names, whereas cat owners prefer names with playfulness, reflecting their differed attitudes toward each type of pet.
+
 
 ### 8. House sizes and prices
 
