@@ -1,6 +1,6 @@
 ---
 title: "EDAV Problem Set 1 Fall 2025"
-author: Mayur Suhas Kulkarni ( msk2277 )
+author: Mayur Suhas Kulkarni (msk2277)
 execute:
   echo: true
 format:
@@ -24,11 +24,9 @@ Data: "food.csv" file in /data folder in CourseWorks
 
 a)  Draw multiple horizontal boxplots of `calories`, by `restaurant`. What do you observe?
 
-# Name: Mayur Suhas Kulkarni
-# Date: Sept 2025
 
-#Loading the required libraries in R
 ```{r}
+#Loading the required libraries in R
 library(ggplot2)
 library(dplyr)
 library(readr)
@@ -52,6 +50,7 @@ ggplot(food_data, aes(x = calories, y = reorder(restaurant, calories, median))) 
   )
 ```  
 Observations: 
+
 i) Chick Fil-A has the lowest median calorie count.
 
 ii) Subway shows a wider inter quartile range in calories compared to others.
@@ -60,7 +59,7 @@ iii) Mc Donalds has the most number of calorie outliers in their menu. Max calor
 
 
 b)  Draw histograms, faceted by `restaurant`, for the same data. Describe one insight that was not visible in the boxplots.
-{```}
+```{r}
 
 # Name: Mayur Suhas Kulkarni
 # Date: Sept 2025
@@ -89,12 +88,12 @@ ggplot(food_data, aes(x = calories)) +
     panel.grid.minor = element_blank()
   )
   
+```
 One insight that I observed in the histograms were the multimodal nature of distributions. In Subway's plot, I was able to observe three distinct clusters of items and three respective peaks for the same. ( at ranges around 300, 500 and 900)
 
 
 c) Do crispy items have more calories than grilled items? Use overlapping density curves to compare.
 ```{r}
-# Assignment_1
 
 # Name: Mayur Suhas Kulkarni
 # Date: Sept 2025
@@ -592,9 +591,9 @@ c) Create a scatterplot of popular cat names vs. popular dog names. Clearly some
 ```{r}
 
 # df from part b used to dog percentages
-df$prop_dog <- df$dog / df$total
+all_counts$prop_dog <- all_counts$dog_count / all_counts$total
 
-ggplot(df, aes(x=dog, y=cat)) +
+ggplot(all_counts, aes(x=dog_count, y=cat_count)) +
   geom_point(aes(color=prop_dog), size=2) +
   scale_color_gradient(low="#d62728", high="#1f77b4", name="Dog Prop") +
   labs(title="Dog vs Cat Counts by Name",
@@ -610,15 +609,18 @@ d) Create a new variable for type of name ("dog", "cat" or "neutral") and redraw
 
 ```{r}
 #using the metrics mentioned above
-df$type <- with(df, 
+all_counts$type <- with(all_counts, 
   ifelse(prop_dog > 0.7, "Dog Name",
   ifelse(prop_dog < 0.3, "Cat Name","Neutral"))
 )
-# Label top 20 in total
-top20 <- head(df[order(-df$total), ], 20)$name
-df$label <- ifelse(df$name %in% top20, df$name, "")
 
-ggplot(df, aes(x=dog, y=cat, color=type)) +
+
+# Label top 20 in total
+
+top20 <- head(all_counts[order(-all_counts$total), ], 20)$name
+all_counts$label <- ifelse(all_counts$name %in% top20, all_counts$name, "")
+
+ggplot(all_counts, aes(x=dog_count, y=cat_count, color=type)) +
   geom_point(size=3, alpha=0.8) +
   geom_text(aes(label=label), vjust=-0.5, size=3) +
   scale_color_manual(values=c("Dog Name"="#1f77b4",
@@ -627,6 +629,7 @@ ggplot(df, aes(x=dog, y=cat, color=type)) +
   labs(title="Pet Name Popularity by Species",
        x="Dog Count", y="Cat Count", color="Name Type") +
   theme_minimal(base_size=12)
+
 ```
 
 e) What are your most interesting discoveries from this dataset?
@@ -663,4 +666,3 @@ d) Create scatterplots of `price` vs. `area` faceted by `Neighborhood`. Add best
 e) Is the slope higher in neighborhoods with higher mean housing prices? Present graphical evidence and interpret in the context of this data.
 
 f) Repeat parts d) with the following adjustment: order the faceted plots by $R^2$ from the linear regression of `price` on `area` by `Neighborhood`.  Are the results the same for slope and $R^2$? Explain using examples from the graphs.
-
