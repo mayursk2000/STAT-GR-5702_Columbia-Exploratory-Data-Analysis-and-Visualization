@@ -139,7 +139,6 @@ Insight: Density curve for grilled items shows concentration in the lower end of
 
 Therefore, the crispy items have a relative number of higher calories than the grilled ones.
 
-{change the colors}
 
 d) Expand on part c) by creating a single ridgeline plot that show the distributions of grilled vs crispy for each restaurant. What do you observe?
 
@@ -664,3 +663,4 @@ d) Create scatterplots of `price` vs. `area` faceted by `Neighborhood`. Add best
 e) Is the slope higher in neighborhoods with higher mean housing prices? Present graphical evidence and interpret in the context of this data.
 
 f) Repeat parts d) with the following adjustment: order the faceted plots by $R^2$ from the linear regression of `price` on `area` by `Neighborhood`.  Are the results the same for slope and $R^2$? Explain using examples from the graphs.
+
