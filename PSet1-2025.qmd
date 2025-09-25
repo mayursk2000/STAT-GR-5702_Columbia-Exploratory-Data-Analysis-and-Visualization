@@ -260,7 +260,7 @@ for(i in 1:length(locations)) {
     geom_histogram(aes(y = after_stat(density)), bins = 12, 
                    fill = "lightblue", color = "white", alpha = 0.7) +
     # Actual density curve to be drawn
-    geom_density(color = "blue", size = 1) +
+    geom_density(color = "blue", linewidth = 1) +
     # Theoretical normal curve to be drawn
     stat_function(fun = dnorm, 
                   args = list(mean = mean_y, sd = sd_y),
