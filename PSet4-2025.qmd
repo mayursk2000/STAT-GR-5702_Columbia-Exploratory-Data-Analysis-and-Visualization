@@ -1,0 +1,537 @@
+---
+title: "EDAV Problem Set 4 Fall 2025"
+authors: Mayur Suhas Kulkarni (msk2277)
+execute:
+  echo: true
+  warning: false
+  message: false
+format:
+  html:
+    fig-width: 6
+    fig-height: 4
+    out-width: 60%
+    embed-resources: true
+---
+
+### IMPORTANT NOTES FOR ALL QUESTIONS
+
+See "Assignment Guidelines" under Pages in CourseWorks for instructions that apply to all assignments. (The guidelines will grow as the semester progresses so check back for each new assignment.)
+
+**Do not use AI to answer interpretation questions. Keep your answers short and to the point. Overly verbose answers will be penalized.**
+
+## 1. Regression diagnostics
+
+Dataset: `alr4::Highway`
+
+Fit the model with the mean function shown below and analyze the residuals to determine whether the assumptions of linear regression are met using the techniques discussed in class. (Use regular residuals, not standardized or studentized.) Your answer should be thorough: if multiple methods were presented (for example, for normality), use them all and compare the results.
+
+$\hat{E}(rate|trks, acpt, slim) = \beta_0 + \beta_1trks + \beta_2acpt + \beta_3slim$
+
+Describe what you see; your responses do not have to be "yes" or "no" answers to whether assumptions are met or not.
+```{r}
+
+# Load required packages
+library(alr4)
+
+# Load the Highway dataset
+data(Highway)
+
+# Examine the data
+head(Highway)
+str(Highway)
+summary(Highway)
+
+# Fiting the linear regression model
+model <- lm(rate ~ trks + acpt + slim, data = Highway)
+summary(model)
+
+# Extract regular residuals
+residuals <- residuals(model)
+fitted_values <- fitted(model)
+
+```
+```{r}
+#analyzing how good the linearity assumption holds
+
+plot(fitted_values, residuals,
+     xlab = "Fitted Values", 
+     ylab = "Residuals",
+     main = "Residuals vs Fitted Values (Linearity Check)",
+     pch = 16, col = "darkblue")
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+lines(lowess(fitted_values, residuals), col = "blue", lwd = 2)
+
+
+```
+a) We can see that the LOWESS line is curved (blue line vs red one), there is no systematic pattern and the mean looks to be deviant from the 0 line. So, the assumption of linearity is violated with this modelling.
+
+```{r}
+
+#Checking residuals with each predcitor
+
+# Residuals vs trks
+plot(Highway$trks, residuals,
+     xlab = "trks (Truck Volume)", 
+     ylab = "Residuals",
+     main = "Residuals vs trks",
+     pch = 16, col = "darkblue")
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+lines(lowess(Highway$trks, residuals), col = "blue", lwd = 2)
+
+# Residuals vs acpt
+plot(Highway$acpt, residuals,
+     xlab = "acpt (Access Points)", 
+     ylab = "Residuals",
+     main = "Residuals vs acpt",
+     pch = 16, col = "darkblue")
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+lines(lowess(Highway$acpt, residuals), col = "blue", lwd = 2)
+
+# Residuals vs slim
+plot(Highway$slim, residuals,
+     xlab = "slim (Speed Limit)", 
+     ylab = "Residuals",
+     main = "Residuals vs slim",
+     pch = 16, col = "darkblue")
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+lines(lowess(Highway$slim, residuals), col = "blue", lwd = 2)
+
+
+
+```
+1. Residuals vs acpt (Access Points)
+The blue line shows a noticeable V-shaped pattern: it dips below zero, rises, and then dips again at the high end of acpt.
+
+This suggests non-linearity: the relationship between acpt and the response may not be well-modeled by a straight line.
+
+
+2. Residuals vs slim (Speed Limit)
+The blue line is relatively flat across most of the range, with only very mild upward movement at the higher end of slim.
+
+This means there is no strong evidence of non-linearity for slim. The linearity assumption is reasonably satisfied for this predictor.
+
+Minor wiggles at the ends may just be due to few data points there (which makes the smoother less reliable at extremes).
+
+3. Residuals vs trks (Truck Volume)
+The blue line is generally flat, with only slight changes and no clear curvature.
+
+This supports the linearity assumption for trks.
+
+```{r}
+#Check for constant variance
+
+plot(fitted_values, residuals,
+     xlab = "Fitted Values", 
+     ylab = "Residuals",
+     main = "Residuals vs Fitted (Constant Variance Check)",
+     pch = 16, col = "darkblue")
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+
+```
+
+The spread of residuals appears roughly constant for fitted values between 2 and 5, but there are a handful of larger residuals as fitted values increase past 6. This is not a strong or classic "funnel" pattern, but hints at possibly slightly greater variability at higher fitted values. Overall, there's no strong evidence of severe heteroscedasticity, though the larger residuals at high fitted values are worth noting.
+
+```{r}
+#Absolute residuals vs fitted values
+
+plot(fitted_values, abs(residuals),
+     xlab = "Fitted Values", 
+     ylab = "|Residuals|",
+     main = "Absolute Residuals vs Fitted (Variance Check)",
+     pch = 16, col = "darkblue")
+lines(lowess(fitted_values, abs(residuals)), col = "blue", lwd = 2)
+
+
+```
+The absolute residuals vs fitted values plot reveals that the spread increases for fitted values between 3 and 5, then decreases for fitted values above 6. This "bulge" suggests that the constant variance assumption may not be fully met, with residuals more variable for medium predictions. However, there is no classic funnel or dramatic heteroscedasticity. This pattern is worth noting if considering transformations or weighted regression.
+
+```{r}
+#Index Method for Independence check ( Residuals vs Observation order)
+
+plot(1:length(residuals), residuals,
+     xlab = "Observation Order", 
+     ylab = "Residuals",
+     main = "Residuals vs Observation Order (Independence Check)",
+     pch = 16, col = "darkblue", type = "b")
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+
+
+```
+Most residuals fluctuate randomly above and below zero as observation order increases, which is consistent with independence. However, the brief cluster of large residuals near observation 25 represents a short-lived deviation where residuals shift sharply positive and then negative. There is no evidence of long runs or cycles, though this group could merit further investigation (possible batch or unmodeled factor). Overall, the pattern broadly supports independence but suggests a possible brief local correlation.
+
+```{r}
+
+n <- length(residuals)
+plot(residuals[-n], residuals[-1],
+     xlab = "Residual(i)", 
+     ylab = "Residual(i+1)",
+     main = "Lag Plot of Residuals (Independence Check)",
+     pch = 16, col = "darkblue")
+abline(h = 0, v = 0, col = "gray", lty = 2)
+abline(lm(residuals[-1] ~ residuals[-n]), col = "blue", lwd = 2)
+
+
+```
+
+The lag plot of residuals displays a random scatter without any apparent trend or pattern, and the smoother line is close to flat. There is no evidence of systematic dependence between consecutive residuals, which supports the independence assumption. A few isolated extreme values are visible, but they do not form a pattern. This matches what is expected under the independence assumption for linear regression.
+
+```{r}
+
+#Histogram with Normal Overlay
+
+hist(residuals, breaks = 15, 
+     main = "Histogram of Residuals (Normality Check)",
+     xlab = "Residuals", 
+     col = "lightblue", 
+     border = "darkblue",
+     probability = TRUE)
+curve(dnorm(x, mean = mean(residuals), sd = sd(residuals)), 
+      col = "red", lwd = 2, add = TRUE)
+
+
+```
+
+The histogram of residuals is approximately symmetric and bell-shaped, with a main peak near zero that matches the normal curve overlay well. The residuals appear to follow a normal distribution in the center, though the tails are slightly lighter than expected, indicating fewer extreme values than a perfect normal. There is no obvious skewness or multimodality. Overall, this diagnostic supports the normality assumption for residuals, with only very mild departures at the extremes.
+
+```{r}
+
+qqnorm(residuals, 
+       main = "Normal Q-Q Plot (Normality Check)",
+       pch = 16, col = "darkblue")
+qqline(residuals, col = "red", lwd = 2)
+
+```
+
+The Q-Q plot shows residuals that largely adhere to the line of theoretical normal quantiles, with only mild deviations in the far tails. This suggests that the residuals are approximately normal, with possibly slightly lighter or heavier tails than a perfect normal distribution. There is no evidence of strong skewness or multimodality. Combined with the histogram, this provides support for the normality assumption required for linear regression.
+
+```{r}
+boxplot(residuals, 
+        main = "Boxplot of Residuals (Outlier Detection)",
+        ylab = "Residuals",
+        col = "lightblue",
+        border = "darkblue")
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+
+```
+
+The boxplot of residuals is centered at zero, and the spread appears symmetric above and below the mean. There are no visible extreme outliers, and the distribution within the box is balanced, indicating no strong evidence of skewness or heavy tails. This pattern supports the normality assumption and suggests there are no influential outliers among the regular residuals.
+
+```{r}
+plot(density(residuals), 
+     main = "Density Plot of Residuals (Normality Check)",
+     xlab = "Residuals",
+     lwd = 2,
+     col = "darkblue")
+x_vals <- seq(min(residuals), max(residuals), length = 100)
+lines(x_vals, dnorm(x_vals, mean = mean(residuals), sd = sd(residuals)), 
+      col = "red", lwd = 2, lty = 2)
+legend("topright", c("Actual", "Normal"), 
+       col = c("darkblue", "red"), lty = c(1, 2), lwd = 2)
+
+```
+
+The density plot of residuals is approximately symmetric and centered near zero, and the actual shape tracks the normal curve closely, with modest deviation around 
+−2, where the actual residuals show a small shoulder. The tails of both distributions match well, indicating no major excess of extreme values. This pattern supports the normality assumption with very mild irregularity, but no severe deviation from normality. If combining with your other normality checks (histogram, Q-Q, boxplot), this evidence would be considered as supporting the regression assumptions for most practical purposes.
+
+```{r}
+
+shapiro_test <- shapiro.test(residuals)
+print(shapiro_test)
+
+```
+
+
+The Shapiro-Wilk test for normality gives a test statistic of W=0.977 and a p-value of 0.60. Because the p-value is far above the usual 0.05 cutoff, we fail to reject the null hypothesis, and conclude that the residuals show no statistically significant departure from normality. This result, combined with visual diagnostics, supports the normality assumption necessary for linear regression.
+
+
+
+## 2. Coefficient plots
+
+a. Using the model from question 1., $\hat{E}(rate|trks, acpt, slim) = \beta_0 + \beta_1trks + \beta_2acpt + \beta_3slim$, create a coefficient plot showing 95% confidence intervals for the model coefficients. 
+
+```{r}
+#fitting the model
+
+fit <- lm(rate ~ trks + acpt + slim, data = Highway)
+
+#95 percent confidence intervals and co efficient estimates
+
+library(broom)
+library(ggplot2)
+
+coef_estimates <- coef(fit)
+conf_int <- confint(fit)
+
+coef_df <- broom::tidy(fit, conf.int = TRUE)
+coef_df$term <- factor(coef_df$term, levels = rev(coef_df$term))
+
+ggplot(coef_df, aes(x = estimate, y = term)) +
+  geom_point(size = 3, color = "#002D72") +  # Columbia blue for academic look
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.15, color = "#2874A6", size = 1.1) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey40") +
+  labs(
+    title = "Regression Coefficient Estimates With 95% CIs",
+    x = "Estimate (95% Confidence Interval)",
+    y = NULL
+  ) +
+  theme_minimal(base_family = "serif") +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(size = 12),
+    axis.title.x = element_text(size = 13)
+  )
+
+
+
+```
+
+
+
+
+b. Interpret the graph in a.
+
+The coefficient plot clearly displays the estimated effects of each variable along with their statistical uncertainty. The intercept is reliably positive and significant. However, for the predictors (trks, acpt, and slim), the confidence intervals are tightly centered around zero and all cross the zero line, meaning there is no evidence these predictors are significantly associated with rate in this model. This plot adheres to professional and classroom standards by visualizing both point estimates and inferential uncertainty, as recommended in your lectures.
+
+c. Recreate the graph in a. with standardized coefficients.
+
+```{r}
+# Standardize predictor and outcome variables
+dat_std <- Highway
+dat_std$rate_z <- scale(dat_std$rate)
+dat_std$trks_z <- scale(dat_std$trks)
+dat_std$acpt_z <- scale(dat_std$acpt)
+dat_std$slim_z <- scale(dat_std$slim)
+
+fit_std <- lm(rate_z ~ trks_z + acpt_z + slim_z, data = dat_std)
+
+library(broom)
+coef_std <- tidy(fit_std, conf.int = TRUE)
+coef_std$term <- factor(coef_std$term, levels = rev(coef_std$term))
+
+```
+
+```{r}
+
+library(ggplot2)
+ggplot(coef_std, aes(x = estimate, y = term)) +
+  geom_point(size = 3, color = "#002D72") +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.15, color = "#2874A6", size = 1.1) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey40") +
+  labs(
+    title = "Standardized Coefficient Plot with 95% CIs",
+    x = "Standardized Estimate (95% Confidence Interval)",
+    y = NULL
+  ) +
+  theme_minimal(base_family = "serif") +
+  theme(
+    plot.title = element_text(face = "bold", size = 15, hjust = 0.5),
+    axis.text = element_text(size = 12),
+    axis.title.x = element_text(size = 13)
+  )
+
+```
+
+d. Interpret the graph in c., comparing to a.
+
+Magnitude now comparable: Standardization lets you directly judge which variable has the strongest association with rate, independent of original scale.
+
+All predictors (trks_z, acpt_z, slim_z) have coefficients clustered near zero, with wide confidence intervals crossing zero. None is statistically significant by the graphical standard taught in lecture. This matches the previous (unstandardized) coefficient plot, where confidence intervals for predictors also included zero.
+
+No sign flips: The direction (positive or negative) for each variable is consistent between plots, but effect sizes in the standardized plot are smaller in absolute value, highlighting the lack of strong associations.
+
+Interval precision: Confidence intervals remain wide, showing substantial uncertainty. This reflects that, after controlling for scale, no predictor has a reliable effect on the standardized outcome.
+
+e. Create a coefficient x effect plot. 
+
+```{r}
+
+library(ggeffects)
+library(ggplot2)
+fit <- lm(rate ~ trks + acpt + slim, data = Highway)
+
+# Compute effects for all predictors:
+effects_trks <- ggpredict(fit, terms = 'trks')
+effects_acpt <- ggpredict(fit, terms = 'acpt')
+effects_slim <- ggpredict(fit, terms = 'slim')
+
+# Plot them in a grid using patchwork:
+library(patchwork)
+p1 <- plot(effects_trks) + labs(title = 'trks effect on rate') + theme_minimal()
+p2 <- plot(effects_acpt) + labs(title = 'acpt effect on rate') + theme_minimal()
+p3 <- plot(effects_slim) + labs(title = 'slim effect on rate') + theme_minimal()
+
+#shaded area is the 95 percent CI for predictions
+
+# Plot all effects side by side:
+p1 | p2 | p3
+
+```
+
+
+f. Do you learn anything new from part e.?
+
+The effect plots reinforce what you saw in the coefficient plot—trks and slim have negative associations with rate, acpt has a positive effect. The visual presentation clarifies that these effects are approximately linear over the observed data ranges. The main added value from these plots is a direct, easily interpretable view of the practical impact of each input, and the uncertainty around those predictions. This format is an important interpretive step, directly in line with your lecture standards.
+
+trks effect on rate
+Negative association: As trks (truck percentage) increases, predicted rate clearly decreases. The line slopes downward.
+
+Uncertainty: The confidence band stays reasonably narrow in the middle range but widens at the edges (less data there).
+
+acpt effect on rate
+Positive association: As acpt (access points) increases, rate increases—the slope is upward. The effect appears nearly linear in your range.
+
+Uncertainty: CI is a little wider at the far right, but the effect is clear and not flat.
+
+slim effect on rate
+Negative association: As slim (speed limit) increases, rate decreases.
+
+Uncertainty: Shaded area again widens at the extremes but effect is solid and nearly linear.
+
+## 3. Variable added plots
+
+a. Find the coefficients for the following models with mean functions:
+
+model 1: $\hat{E}(rate|trks, acpt) = b_0 + b_1trks + b_2acpt$
+
+model 2: $\hat{E}(rate|slim) = b_0 + b_1slim$
+
+```{r}
+model1 <- lm(rate ~ trks + acpt, data = Highway)
+model2 <- lm(rate ~ slim, data = Highway)
+
+coef(model1)  # Coefficients for model 1
+coef(model2)  # Coefficients for model 2
+
+summary(model1)$coefficients
+summary(model2)$coefficients
+
+
+```
+
+Compare $R^2$ from the full model in question 1 to the $R^2$ values for the two models. What do you learn about the regressors from these values?
+
+```{r}
+
+summary(fit)$r.squared      # Full model
+summary(model1)$r.squared   # Model 1
+summary(model2)$r.squared   # Model 2
+
+```
+$R^2$ represents the proportion of variance in rate explained by the predictors.
+
+The full model explains approximately 67.7% of the variance in rate, while Model 1 explains 63.3% and Model 2 explains 46.4%.
+
+Adding slim to trks and acpt increases $R^2$ from 0.633 to 0.677. This is a meaningful improvement, indicating that slim adds substantial explanatory power to the model. It captures important variation in rate not explained by the other two predictors.
+
+Model 2, which uses only slim, has the lowest $R^2$ (0.464). This suggests that while slim is useful, it cannot explain as much variance alone as the combination of predictors in the other models can.
+
+Conclusion:
+
+Each variable contributes to explaining rate, but slim plays a particularly important role—its addition to the other predictors notably increases model fit.
+
+The improvement in $R^2$ highlights the value of using all relevant predictors identified in the full model.
+
+Nevertheless, no model explains all of the variance (i.e., $R^2$ is well below 1.0), which is typical in real-world regression analyses.
+
+
+b. How much additional variation is explained by the addition of `slim` to model 1?
+
+Adding slim to the model explains an additional 4.48% of the variance in rate, beyond what is explained by trks and acpt alone.
+
+The fact that $R^2$ increases by about 4.5% indicates that slim (speed limit) provides meaningful new information for predicting rate that cannot be captured by the other predictors.
+
+c. Create an added variable plot for `slim` and add the best fitting line. (Hint: unlike the example in class, there are *two* other regressors in the problem besides `slim`.)
+
+```{r}
+
+library(car)
+fit_full <- lm(rate ~ trks + acpt + slim, data = Highway)
+avPlot(fit_full, variable = "slim")
+
+```
+
+d. Determine and interpret the slope of the line in part c. 
+
+```{r}
+fit <- lm(rate ~ trks + acpt + slim, data = Highway)
+coef(fit)["slim"]     # this is the slope in your plot
+
+
+```
+The slope of the line in the added variable plot is -0.0984.
+
+This means that, holding trks and acpt constant, a one-unit increase in the component of slim that is not explained by trks and acpt is associated with a decrease of 0.0984 units in the unique component of rate.
+
+The negative slope confirms that higher speed limits (slim), when controlling for trucks and access points, are associated with lower predicted rates in this dataset.
+
+e. Determine and the $R^2$ of the regression in part d. and relate it to the $R^2$ values from part a.
+
+## 4. Decision trees
+
+Data: `cirrhosis.csv` (in Assignments folder)
+
+The response variable in the data set is `Status` which as you can see below is simplified to *died* vs. *survived*. 
+
+Run this code to create three classification models. 
+
+```{r}
+#| warning: false
+#| message: false
+library(tidyverse)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+library(pdp)
+library(lime)
+set.seed(5293)
+df <-read.csv("cirrhosis.csv", stringsAsFactors = TRUE)
+df <- df |> select(-c("Age", "N_Days", "ID")) |> 
+  mutate(Status = factor(ifelse(df$Status == "D", "died", "survived")))
+train_index <- sample(nrow(df), .8*nrow(df))
+df_train <- df[train_index,]
+df_test <- df[-train_index,]
+
+# bigtree
+bigtree <- rpart(Status ~ ., data = df_train, cp = 0)
+
+# littletree
+littletree <- prune(bigtree, cp = .1)
+
+# forest
+test_case <- 125
+forest_train <- df[-test_case, ]
+forest_test <- df[test_case,]
+forest <- randomForest(Status ~ ., data = forest_train,
+                          na.action = na.roughfix)
+```
+
+
+a) Create visualizations for `littletree` and `bigtree` decision trees. The visualizations should contain information about the number of observations from the training set in each leaf, not just the percentage. An explanation should be provided for what the numbers in the nodes represent since it is not self-evident.
+
+b) For `littletree` manually calculate the decrease in Gini impurity after the first split.
+
+
+c) Is it possible that a different split would reduce the Gini impurity more than the first (and only) split in `littletree`?
+
+d) Compare the prediction accuracy for `littletree` and `bigtree`. For each, how do the types of misclassification errors (wrongly predict "died" vs. wrongly predict "survived") compare for the training data and for the test data?
+
+
+## 5. Partial Dependence Plots
+
+a) Use the **pdp** with **ggplot2** to create faceted graphs showing the partial dependence plots for the numeric variables in `bigtree` and `forest`. For each, the facets should be in *decreasing order* of standard deviation for `yhat`. 
+
+Note: Use the parameter `prob = TRUE` with `partial()` so the predictions will be probabilities.
+
+b) Describe the similarities and differences in pdp plots within each and across the models.
+
+
+## 6. LIME
+
+a) Use LIME to explain the prediction `forest` makes for the `forest_test` observation. What is the linear equation it produces? (Use 4 features and don't change any defaults.)
+
+b) What is the $r^2$ for the LIME model?
+
+c) Recreate a LIME model for the same test observation several times. Do the results (explanation fit, feature selection, feature weights) vary?
+
+d) Repeat part c) adding `n_permutations = 50`. What are the results now?
+
