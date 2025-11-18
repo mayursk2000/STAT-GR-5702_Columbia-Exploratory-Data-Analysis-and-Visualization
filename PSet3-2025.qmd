@@ -1,0 +1,437 @@
+---
+title: "EDAV Problem Set 3 Fall 2025"
+authors:
+execute:
+  cache: true
+  echo: true
+format:
+  html:
+    fig-width: 7
+    fig-height: 5
+    embed-resources: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+### IMPORTANT NOTES FOR ALL QUESTIONS
+
+See "Assignment Guidelines" under Pages in CourseWorks for instructions that apply to all assignments. (The guidelines will grow as the semester progresses so check back for each new assignment.)
+
+### Resources for this assignment
+
+*Geocompution with R*, *Spatial Data Visualization with tmap*
+[https://geocompx.org/](https://geocompx.org/)
+
+Westchester County, New York data: [https://gis.westchestergov.com/](https://gis.westchestergov.com/)
+
+Census data with **tidycensus** package: *Analyzing US Census Data: Methods, Maps, and Models in R* [https://walker-data.com/census-r/](https://walker-data.com/census-r/)
+
+NOTES
+
+For **tidycensus** you will need to set up a Census API key. After calling the API and getting the data, save it locally and comment out the API call lines. Work with your saved local copy to avoid making repeated calls for the same data, to save time waiting for the data, and to be able to work without an internet connection. Do not share your API key. You may store it *locally* in `.Renviron`. 
+
+The only packages you need for this assignment in addition to **tidyverse** packages (not listed below) are **sf**, **tidycensus**, **ggdensity**, and **tmap**.
+
+```{r}
+library(tidyverse)
+library(tidycensus)
+library(sf)
+library(ggdensity)
+library(tmap)
+
+#used for filtering data
+library(dplyr)
+
+#histogram
+library(ggplot2)
+
+#set up census API Key (run once)
+#census_api_key("626e65050644fc48d16fb966a5e56a3c2f1f95ac", install = TRUE)
+
+```
+
+### 1. Westchester County Towns and School Districts
+
+[12 points]
+
+Use **sf** and **tmap** (version 4 code).
+
+a) Obtain shape file data from [https://gis.westchestergov.com/](https://gis.westchestergov.com/) to draw side-by-side maps of Westchester municipal boundaries and Westchester school district boundaries. Label the regions on the maps.
+
+```{r}
+#| fig-width: 8
+#| fig-height: 8
+
+municipal <- "Municipal_Boundaries_/Municipal_Boundaries_.shp"
+school_districts <- "School_Districts/School_Districts.shp"
+
+muni <- st_read(municipal, quiet = TRUE)
+sd <- st_read(school_districts, quiet = TRUE)
+
+#sd <- st_transform(sd, st_crs(muni))
+#crs standardization
+sd <- st_transform(sd, st_crs(muni))
+
+tmap_mode("plot")
+
+#municipal boundaries
+map_muni <- tm_shape(muni) +
+  tm_polygons(fill = "lightblue2", col  = "steelblue", lwd = 0.6) +
+  tm_text("NAME", size = 0.5, fontface = "bold",
+    col = "black", options = opt_tm_text(point.label = TRUE)) +
+  tm_title("Municipal Boundaries (Westchester)") 
+
+#school district boundaries
+map_sd <- tm_shape(sd) +
+  tm_polygons(fill = "lightblue2", col  = "steelblue", lwd = 0.6) +
+  tm_text("DISTNAME", size = 0.5,fontface = "bold",
+    col = "black", options = opt_tm_text(point.label = TRUE)) +
+  tm_title("School District Boundaries (Westchester)") 
+
+#Display maps side by side
+tmap_arrange(map_muni, map_sd, ncol = 2)
+
+```
+
+b) What do you observe?
+
+School district boundaries do not align with municipal boundaries with a municipality
+crossing into several school districts and vice versa. For example the Bedford
+school district also includes the Pound Ridge municipality in addition to the Bedford municipality for example.
+
+c) Add the Bedford school district as an additional layer on the municipal boundaries map. 
+
+```{r}
+#| fig-width: 9
+#| fig-height: 9
+
+names(sd)
+
+#Filter Bedford school district
+bedford_sd <- sd |> filter(grepl("Bedford", DISTNAME, ignore.case = TRUE))
+
+
+tmap_mode("plot")
+
+
+tm_shape(muni) +
+  tm_polygons(fill = "lightblue2",
+              col = "steelblue",
+              lwd = 0.6) +
+  tm_text(
+    "NAME",
+    size = 0.5,
+    fontface = "bold",
+    col = "darkblue",
+    options = opt_tm_text(point.label = TRUE)
+  ) +
+  tm_shape(bedford_sd) +
+  tm_polygons(
+    fill = "red",
+    col = "red",
+    fill_alpha = 0.3,
+    lwd = 2
+  ) +
+  tm_text(
+    text = paste0(bedford_sd$DISTNAME, " School Dist"),
+    size = 0.6,
+    fontface = "bold",
+    col = "black",
+    options = opt_tm_text(point.label = TRUE)
+  ) +
+  tm_title("Bedford School District over Municipal Boundaries")
+```
+
+
+
+
+d) Which towns have areas included in the Bedford school district?
+
+Bedford, Lewisboro, Mount Kisco, New Castle, North Castle, Pound Ridge, Somers  
+
+Lewisboro and Somers are not as visible visually & touch on the borders of
+the Bedford School District so are being included.
+
+```{r}
+
+#VERIFYING VIA CODE
+
+# boolean overlap
+hits <- st_intersects(muni, bedford_sd, sparse = FALSE)[,1]
+
+# list the town names
+sort(unique(muni$NAME[hits]))
+
+
+
+```
+
+
+### 2. Median Household Income
+
+[12 points]
+
+Use **tidycensus** (see NOTES above) and **tmap** (version 4 code). 
+
+Maps do not need to be labeled.
+
+a) Which geographic areas (states, counties, etc.) are available through **tidycensus**? Cite your source.
+
+Source: https://walker-data.com/tidycensus/articles/basic-usage.html
+
+Available geographies:
+- us
+- region
+- division
+- state
+- county
+- county subdivision
+- tract
+- block group or cbg
+- block
+- place
+- alaska native regional corporation
+- american indian area/alaska native area/hawaiian home land
+- american indian area/alaska native area (reservation or statistical entity only)
+- american indian area (off-reservation trust land only)/hawaiian home land
+- metropolitan/micropolitan statistical area" (2021 5-year ACS and later) OR "metropolitan statistical area/micropolitan statistical area" OR "cbsa
+- combined statistical area
+- new england city and town area
+- combined new england city and town area
+- urban area
+- congressional district
+- school district (elementary)
+- school district (secondary)
+- school district (unified)
+- public use microdata area
+- "zip code tabulation area" OR "zcta"
+- "state legislative district (upper chamber)"
+- "state legislative district (lower chamber)"
+- "voting district"
+
+```{r}
+library(tidycensus)
+
+#set up census API Key (run once)
+#census_api_key("626e65050644fc48d16fb966a5e56a3c2f1f95ac", install = TRUE)
+
+
+```
+
+
+b) Get data for median household income (MHI) by census **block group** in Westchester County in 2023. Draw a histogram of MHI. What do you observe?
+
+```{r}
+
+#Saving the data as an RDS locally
+# mhi <- get_acs(
+#   geography = "block group",
+#   variables = "B19013_001",
+#   state = "NY",
+#   county = "Westchester",
+#   year = 2023,
+#   geometry = TRUE
+# )
+# saveRDS(mhi, "westchester_mhi_2023.rds")
+
+# Reading saved RDS file
+mhi <- readRDS("westchester_mhi_2023.rds")
+
+#removing unreported/null values for histogram to avoid warning
+ggplot(mhi |> filter(is.finite(estimate)), aes(x = estimate)) +
+  geom_histogram(fill = "lightblue", color = "darkblue", bins = 40) +
+  labs(
+    title = "Distribution of Median Household Income (2023)",
+    x = "Median Household Income ($)",
+    y = "Number of Block Groups"
+  )
+
+```
+
+
+c) Draw a choropleth map of MHI for Westchester County using the same data.
+
+```{r}
+#| fig-width: 13
+#| fig-height: 13
+
+tmap_mode("plot")
+
+#choropleth (block group MHI)
+tm_shape(mhi) +
+  tm_polygons(
+    fill = "estimate",                                   
+    fill.scale = tm_scale_intervals(                    
+      values = "brewer.blues"                            
+    ),
+    fill.legend = tm_legend(title = "Median Household Income ($)")
+  ) +
+  tm_title(
+    text = "Westchester County: Median Household Income by Block Group (2023)"
+  )
+```
+
+d) Add school district boundaries to the choropleth.
+
+```{r}
+#| fig-width: 15
+#| fig-height: 15
+
+#sd <- get_acs(
+  #geography = "school district (unified)",
+  ##population variable
+  #variables = "B01003_001",
+  #state = "NY",
+  #year = 2023,
+  #geometry = TRUE
+#)
+
+
+#save the data locally
+#saveRDS(sd, "sd_2023_unified.RDS")
+
+#read the saved file later
+sd <- readRDS("sd_2023_unified.RDS")
+
+#transform CRS to match your block group map
+sd <- st_transform(sd, st_crs(mhi))
+
+tmap_mode("plot")
+
+tm_shape(mhi) +
+  tm_polygons(
+    fill = "estimate",         
+    fill.scale = tm_scale_intervals(
+      values = "brewer.blues" 
+    ),
+    fill.legend = tm_legend(title = "Median Household Income ($)")
+  ) +
+  tm_shape(sd) +
+  tm_borders(col = "red", lwd = 1) +
+  tm_title("Median Household Income by Block Group with School District Boundaries (2023)") 
+  
+```
+
+
+e) Describe observed patterns across and within school districts.
+
+Many school districts have clusters of higher income level block groups within them.
+Larger area blocks with high income are clustered around the northern area of the map,
+showing high median household incomes and equivalently capturing school districts within 
+this region of high income communities. There are some school districts with a few low and moderate income blocks mixed in with a high income blocks. This suggests there is some socioeconomic diversity within school district boundaries. However, income levels within a single district generally fall within a relatively narrow range, indicating that while variation exists, most households in a district tend to have comparable income levels overall.
+
+
+### 3. Bachelors degrees
+
+[14 points]
+
+Use **tidycensus** (see NOTES above) and **tmap** (version 4 code).
+
+Maps do not need to be labeled.
+
+a) Get data for the total number of people over 25 years with bachelor's degrees by census **tract** in Westchester County in 2023. Draw a choropleth map.
+
+```{r}
+
+```
+
+
+b) The graph from part a) is potentially misleading because it doesn't take population into account. Create a new measure for bachelor's degrees as a percentage of the total population over 25 years and redraw using linear fill scale breaks. 
+
+c) Add a histogram showing the distribution of the bins, using the same fill colors as in the map. What do you observe?
+
+d) Draw two more choropleths with the same data, changing the fill scale breaks from what you used in part b). Be sure that your graphs convey the scale break method in as clear a way as possible.
+
+e) Discuss the results of part d). What are advantages and disadvantages of the different methods?
+
+### 4. Utility Poles
+
+[12 points]
+
+Use **sf** and **ggplot2**
+
+a) Obtain the coordinate locations of utility poles in Westchester County from [https://gis.westchestergov.com/](https://gis.westchestergov.com/). Show the dimensions of the dataset.
+
+```{r}
+
+poles = st_read('Utility_Poles/Utility_Poles.shp',quiet=TRUE)
+dim(poles)
+
+```
+
+
+b) Plot the locations of the points. You do not need to show a background map.
+
+```{r}
+#| fig-width: 12
+#| fig-height: 12
+
+ggplot(data = poles) +
+  geom_sf(size = 0.5, colour = "blue") +
+  labs(title = "Utility Poles in Westchester County",
+       x = "Longitude", y = "Latitude")
+```
+
+
+c) Create a density heatmap of the utility poles using the **ggdensity** package. 
+
+```{r}
+#| fig-width: 12
+#| fig-height: 12
+
+library(ggdensity)
+#library(viridis)
+
+poles_6539 <- st_transform(poles, 6539)
+poles_df   <- cbind(poles_6539, st_coordinates(poles_6539))
+
+ggplot(poles_df, aes(X, Y)) +
+  geom_hdr(probs = c(0.0001, 0.1, 0.2, 0.3, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.999999)) + 
+  coord_equal() +
+  scale_fill_viridis_d(
+    name   = "HDR (%)",
+    labels = function(l) paste0(as.numeric(l) * 100),
+    option = "plasma"
+  ) +
+  labs(
+    title = "Utility Pole Highest Density Regions",
+    x = "Longitude", y = "Latitude"
+  ) 
+
+```
+
+
+d) Add municipal boundaries with labels. 
+
+```{r}
+#| fig-width: 12
+#| fig-height: 12
+
+municipal_6539 <- st_transform(muni, 6539)
+muni_labels    <- st_point_on_surface(municipal_6539)
+
+ggplot(poles_df, aes(X, Y)) +
+  geom_hdr(probs = c(0.0001, 0.1, 0.2, 0.3, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.999999)) +
+  geom_sf(data = muni, fill = NA, color = "black", linewidth = 0.4, inherit.aes = FALSE) +
+  geom_sf_text(data = muni, aes(label = NAME), color = "red", size = 3, check_overlap = TRUE, inherit.aes = FALSE) +
+  coord_sf() +
+  scale_fill_viridis_d(
+    name   = "HDR (%)",
+    labels = function(l) paste0(as.numeric(l) * 100),
+    option = "plasma"
+  ) +
+  labs(
+    title = "Utility Pole Highest Density Regions with Municipal Boundaries",
+    x = "Longitude", y = "Latitude"
+  )
+
+```
+
+
+e) Describe the most prominent cluster of towns in terms of utility pole density. 
+
+The most prominent cluster of towns is in the southernmost portion of Westchester
+County, as the density map shows; where there is a large clustering of dark
+regions from the density heatmap overlapping several towns including
+Yonkers, Mount Vernon, Pelham Manor, and Bronxville. 
+
