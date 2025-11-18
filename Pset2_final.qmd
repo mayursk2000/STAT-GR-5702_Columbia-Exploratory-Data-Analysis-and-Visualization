@@ -1,0 +1,816 @@
+---
+title: "EDAV Problem Set 2 Fall 2025"
+author: [ADD YOUR NAMES AND UNIs HERE]
+execute:
+  echo: true
+format:
+  html:
+    fig-width: 6
+    fig-height: 4
+    embed-resources: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+### IMPORTANT NOTES FOR ALL QUESTIONS
+
+See "Assignment Guidelines" under Pages in CourseWorks for instructions that apply to all assignments. (The guidelines will grow as the semester progresses so check back for each new assignment.)
+
+Read *Graphical Data Analysis with R*, Ch. 6, 7
+
+```{r}
+library(tidyverse)
+library(GGally)
+library(ggrepel)
+library(ggplot2)
+library(readr)
+library(parcoords)
+library(htmlwidgets)
+library(vcd)          # mosaic()
+library(RColorBrewer)
+library(ggalluvial)
+library(lubridate)
+library(pdftools)
+library(stringr)
+find.package("tidyverse")
+find.package("devtools")
+find.package("ggplot2")
+```
+
+### 1. Crime
+
+[10 points]
+
+Data source: [https://data.ny.gov/Public-Safety/Index-Crimes-by-County-and-Agency-Beginning-1990/ca8h-8gjq](https://data.ny.gov/Public-Safety/Index-Crimes-by-County-and-Agency-Beginning-1990/ca8h-8gjq)
+
+You do not need to submit the data with your assignment. You may either download and read from your local copy or read directly from the web site with `df <- read_csv("https://data.ny.gov/api/views/ca8h-8gjq/rows.csv")
+
+```{r}
+crime_data <- read.csv("/Users/base/Downloads/Index_Crimes_by_County_and_Agency__Beginning_1990_20251002.csv")
+View(crime_data)
+```
+```{r}
+summary(crime_data)
+```
+
+a) Create a parallel coordinates plot showing the number of crimes in each of the categories listed for 2020. Show *actual* counts; do not rescale. Your graph should have one line for each county in New York State. (Use `GGally::ggparcoord()`)
+
+```{r}
+names(crime_data)
+```
+Parallel Coordinates plot of Crime Categories vs Crime Counts for different counties in 2020.
+```{r}
+crime_type <- c("Murder","Rape","Robbery","Aggravated.Assault",
+                "Burglary","Larceny","Motor.Vehicle.Theft")
+county_2020 <- crime_data %>%
+  filter(Year == 2020) %>%
+  group_by(County) %>%
+  summarise(across(all_of(crime_type), ~ sum(.x, na.rm = TRUE)), .groups = "drop") %>%
+  arrange(County)
+
+GGally::ggparcoord(
+  data        = county_2020,
+  columns     = match(crime_type, names(county_2020)),
+  groupColumn = which(names(county_2020) == "County"),
+  scale       = "globalminmax",              
+  showPoints  = FALSE
+) +
+  labs(
+    title   = "Crime Category Counts of Counties in New York State(2020)",
+    x = "Crime category", y = "Crime Counts", color = "County"
+  ) +
+  theme_minimal(base_size = 12)+
+  guides(color = "none")
+
+```
+
+b) Now experiment with alpha blending, splines, and rescaling to create the clearest version of the plot that you can. What patterns do you observe? (Use `GGally::ggparcoord()`)
+
+We will try to refine the opacity and scales of our current plot and add features like alphaLines, splineFactor, and and a z score in scale values for standardizing the plot.
+Let us consider a splineFactor of 6
+
+```{r}
+crime_type <- c("Murder","Rape","Robbery","Aggravated.Assault",
+                "Burglary","Larceny","Motor.Vehicle.Theft")
+county_2020 <- crime_data %>%
+  filter(Year == 2020,!is.na(Region)) %>%
+  group_by(County,Region) %>% 
+  summarise(across(all_of(crime_type), ~ sum(.x, na.rm = TRUE)), .groups = "drop") %>%
+  arrange(County)
+cols_idx <- match(crime_type, names(county_2020))
+alpha_use <- 0.7
+
+
+GGally::ggparcoord(
+  data         = county_2020,
+  columns      = cols_idx,
+  groupColumn  = "County",
+  scale        = "std",        
+  alphaLines   = alpha_use,   
+  showPoints   = FALSE,
+  splineFactor = 6             
+) +
+   labs(
+    title   = "Crime Category Trends of Counties in New York(2020)",
+    x = "Crime category", y = "Standardized Crime Spread", color = "County"
+  ) +
+  theme_minimal(base_size = 11) +
+  guides(color = "none")
+```
+Since the mean falls at 0 post standardizing, and also by curving and smoothing the jaggy ends of the previous plot, we can easily compare counties with higher than average and lower than average crime categories. We can see shape and profile of each county instead of being distracted trying to analyze which county has high absolute counts.
+
+c) Use the **parcoords** package [https://github.com/timelyportfolio/parcoords](https://github.com/timelyportfolio/parcoords) to create an interactive parallel coordinates plot of the same data, coloring by `Region`. Discuss outliers, clusters, and correlations in detail.
+
+install.packages(
++     "parcoords",
++     repos = c("https://timelyportfolio.r-universe.dev", "https://cloud.r-project.org")
++ )
+also installing the dependencies ‘lazyeval’, ‘crosstalk’
+trying URL 'https://cloud.r-project.org/bin/macosx/big-sur-arm64/contrib/4.5/lazyeval_0.2.2.tgz'
+trying URL 'https://cloud.r-project.org/bin/macosx/big-sur-arm64/contrib/4.5/crosstalk_1.2.2.tgz'
+trying URL 'https://timelyportfolio.r-universe.dev/bin/macosx/big-sur-arm64/contrib/4.5/sha256-768d0a7eeac273553baf08359db701c0d76559d8bf04367a53d0523fcd0f45c5'
+
+The downloaded binary packages are in
+	/var/folders/qx/z4yb7xzs4yg6t3rx6chzgl6r0000gn/T//RtmpyPD7rz/downloaded_packages
+We'll also clean up the x axis names
+```{r}
+
+if (!requireNamespace("parcoords", quietly = TRUE)) {
+  install.packages(c("htmlwidgets","htmltools","jsonlite"))
+  install.packages("parcoords",
+                   repos = c("https://timelyportfolio.r-universe.dev",
+                             "https://cloud.r-project.org"))
+}
+
+crime_type <- c("Murder","Rape","Robbery","Aggravated.Assault",
+                "Burglary","Larceny","Motor.Vehicle.Theft")
+
+# 1) Build data: 2020 statewide, one row per county
+pc_df <- crime_data %>%
+  filter(Year == 2020, !is.na(Region)) %>%
+  group_by(County, Region) %>%
+  summarise(across(all_of(crime_type), ~ sum(.x, na.rm = TRUE)), .groups = "drop") %>%
+  # parcoords needs numerics and *really* dislikes NA; coerce & drop if needed
+  mutate(across(all_of(crime_type), ~ as.numeric(.x))) %>%
+  tidyr::drop_na(all_of(crime_type)) %>%
+  arrange(Region, County)
+
+# 2) Strip tibbles → plain data.frame (avoids some widget edge cases)
+pc_dat <- pc_df %>% select(all_of(crime_type), Region) %>% as.data.frame()
+pc_dat <- as.data.frame(pc_df[, c(crime_type, "Region")])
+
+w <- parcoords(
+  data        = pc_dat,
+  rownames    = pc_df$County,  # hover shows county
+  brushMode   = "1D-axes",
+  reorderable = TRUE,
+  composite   = "darken",
+  alpha       = 0.35,
+  color       = list(colorBy = "Region"),
+  height      = 400,           # <- fix height: prevents collapsed blank pane
+  width       = "100%"
+)
+
+w
+```
+
+### 2. Sleep
+
+[12 points]
+
+Data: `SleepStudy` from **Lock5withR** package [https://github.com/rpruim/Lock5withR](https://github.com/rpruim/Lock5withR)
+```{r}
+sleep_data<- load("/Users/base/Downloads/SleepStudy.rda")  # structure
+summary(SleepStudy)      # quick stats
+View(SleepStudy)
+```
+
+Draw the following graphs and answer the questions.
+
+a) Draw two mosaic plots: `AnxietyStatus` vs. `ClassYear` and `NumEarlyClass` vs. `ClassYear`. Compare/discuss associations between the variables.
+
+Mosaic plot for AnxietyStatus vs ClassYear
+```{r}
+SS1 <- SleepStudy |>
+  transform(
+    ClassYear = factor(ClassYear),
+    AnxietyStatus = factor(AnxietyStatus,
+                           levels = c("normal","moderate","severe"),
+                           labels = c("Norm","Mod","Sev"))
+  ) |>
+  subset(!is.na(AnxietyStatus) & !is.na(ClassYear)) |>
+  droplevels()
+
+
+tab1 <- xtabs(~ ClassYear + AnxietyStatus, data = SS1)
+lvl <- levels(SS1$AnxietyStatus)   # "Norm","Mod","Sev"
+cols <- setNames(c("#66C2A5", "#1F78B4", "red"), lvl)
+pal_vec <- unname(cols[lvl])
+
+pal <- brewer.pal(nlevels(SS1$AnxietyStatus), "Set2")
+
+C
+mosaic(
+  tab1,
+  direction         = c("v","h"),
+  highlighting      = 2,
+  highlighting_fill = pal_vec,         # your colors (with Sev = red)
+  legend            = FALSE,
+  main              = "Anxiety Status by Class Year",
+  labeling_args = list(
+    set_varnames  = c(ClassYear = "Class Year", AnxietyStatus = "Anxiety Status"),
+    rot_labels    = c(0, 0, 0, 90),   # rotate LEFT labels 90°
+    gp_labels     = grid::gpar(cex = 0.9)
+  )
+)
+
+```
+Mosaic plot for NumEarlyClass vs ClassYear
+```{r}
+SS2 <- SleepStudy |>
+  transform(
+    ClassYear     = factor(ClassYear),
+    NumEarlyClass = factor(NumEarlyClass)   
+  ) |>
+  subset(!is.na(NumEarlyClass) & !is.na(ClassYear)) |>
+  droplevels()
+
+tab2 <- xtabs(~ ClassYear + NumEarlyClass, data = SS2)
+
+# darkest for "5", lightest for "1"
+pal2 <- {
+  lev <- levels(SS2$NumEarlyClass)             
+  n   <- length(lev)
+  blues <- RColorBrewer::brewer.pal(max(3, n), "Blues")  
+  
+  blues[order(as.numeric(lev))]
+}
+
+mosaic(
+  tab2,
+  direction         = c("v","h"),
+  highlighting      = 2,                
+  highlighting_fill = pal2,
+  legend            = FALSE,
+  main              = "Early Classes by Class Year",
+  labeling_args = list(
+    set_varnames  = c(ClassYear = "Class Year", NumEarlyClass = "Early Classes"),
+    rot_labels    = c(0, 0, 0, 90),     #rotate LEFT labels
+    offset_labels = c(0, 0, 0, 0.05),
+    gp_labels     = grid::gpar(cex = 0.9)
+  )
+)
+```
+Observations:
+1. Dependent Variables(AnxietyStatus and NumEarlyClass) split horizontally
+2. Fill is set to dependent variables
+3. Most important level(Severity of a criteria that determines our analysis) is closer to x axis and is the darkest in both mosaic plot.
+4. Based on mosaic plot 1, many students have normal anxiety levels. Students in years 1 and 2 have more moderate level of anxiety, while students in years 3 and 4 have severe level of anxiety.
+5. Based on mosaic plot 2, 1st years have more number of early classes compared to 2nd, 3rd, and 4th years. 4th years have the least number of early classes.
+
+b) Perform chi square tests to test for associations between the sets of variables graphed in part a). What are the results? Discuss in relation to the mosaic plots.
+
+```{r}
+SS1 <- SleepStudy |>
+  transform(AnxietyStatus = factor(AnxietyStatus),
+            ClassYear     = factor(ClassYear)) |>
+  subset(!is.na(AnxietyStatus) & !is.na(ClassYear)) |>
+  droplevels()
+
+tab1 <- xtabs(~ AnxietyStatus + ClassYear, data = SS1)
+
+X1 <- chisq.test(tab1)
+X1$observed     # observed counts
+X1$expected     # expected counts under independence
+X1              # test statistic, df, p-value
+vcd::assocstats(tab1)
+
+SS2 <- SleepStudy |>
+  transform(NumEarlyClass = factor(NumEarlyClass),
+            ClassYear     = factor(ClassYear)) |>
+  subset(!is.na(NumEarlyClass) & !is.na(ClassYear)) |>
+  droplevels()
+
+tab2 <- xtabs(~ NumEarlyClass + ClassYear, data = SS2)
+
+X2 <- chisq.test(tab2)
+X2$observed
+X2$expected
+X2
+vcd::assocstats(tab2) 
+```
+For AnxietyStatus vs ClassYear, p value is greater than 0.05, so there is no clear association that anxiety status is influenced by class year.
+For NumEarlyClass vs ClassYear, p value is much lesser than 0.05, there is a clear association that 1st number of early classes change with change in class years.
+#Add null hypothesis relationship
+c) How is the relationship between anxiety status and number of early classes related to class year? Create a mosaic plot showing all three variables, treating anxiety status as the dependent variable. Discuss the results. 
+```{r}
+SS3 <- SleepStudy |>
+  mutate(
+    ClassYear     = factor(ClassYear),
+    NumEarlyClass = factor(NumEarlyClass),
+    AnxietyStatus = factor(AnxietyStatus,
+                           levels = c("normal","moderate","severe"),
+                           labels = c("Norm","Mod","Sev"))
+  ) |>
+  filter(!is.na(ClassYear), !is.na(NumEarlyClass), !is.na(AnxietyStatus)) |>
+  droplevels()
+
+# 3-way table: ClassYear × NumEarlyClass × AnxietyStatus
+tab3 <- xtabs(~ ClassYear + NumEarlyClass + AnxietyStatus, data = SS3)
+
+# Fill colors for AnxietyStatus (Sev = red)
+lvlA <- levels(SS3$AnxietyStatus)  # "Norm","Mod","Sev"
+fillA <- setNames(c("#66C2A5", "#1F78B4", "#E41A1C"), lvlA)  # green, blue, red (Sev)
+
+mosaic(
+  tab3,
+  direction         = c("v","v","h"),   # Year (v) → EarlyClass (v) → Anxiety (h)
+  highlighting      = 3,                # fill by 3rd dim (AnxietyStatus)
+  highlighting_fill = unname(fillA[lvlA]),
+  legend            = FALSE,            # (legend=TRUE is for shade=, not highlighting)
+  main              = "Anxiety Status by Class Year and # Early Classes",
+  labeling_args     = list(
+    set_varnames  = c(ClassYear = "Class Year",
+                      NumEarlyClass = "# Early Classes",
+                      AnxietyStatus = "Anxiety Status"),
+    rot_labels    = c(0, 0, 0, 270),   # rotate LEFT labels (DV) bottom→top (parallel to y-axis)
+    offset_labels = c(0, 0, 0, 0.05),
+    gp_labels     = gpar(cex = 0.9)
+  )
+)
+
+```
+Observations:
+1. There is a rare occurence of severity of anxiety, with respect to class year as well as number of early classes.
+2. Normal level of anxiety seems to be more common in  all the student population
+3. No significant change in anxiety status when we want to analyze class years or early class hours.
+
+d) Use the base `pairs()` function to draw a mosaic pairs plot of all all categorical (factor) variables in `SleepStudy`. (Note: The **vcd** package must be loaded for `pairs()` to find the correct method.) Name a pair of variables which appear to have a very strong association. Name a pair of variables which appear not to be associated.
+
+```{r}
+vars <- c("ClassYear","NumEarlyClass","AnxietyStatus")
+
+# 1) Keep NA as its own level and abbreviate long level labels
+addNA_factor <- function(x, na_lab = "NA", lab_len = 6){
+  f  <- addNA(as.factor(x))
+  lv <- levels(f); lv[is.na(lv)] <- na_lab
+  levels(f) <- abbreviate(lv, minlength = lab_len, strict = TRUE)
+  f
+}
+
+df3 <- SleepStudy %>%
+  transmute(
+    across(all_of(vars), ~ addNA_factor(.x, na_lab = "NA", lab_len = 5))
+  )
+
+# 2) Build ONE multiway table (keeps NA levels)
+TT <- table(df3, dnn = vars)
+
+# 3) Sparse pairs mosaic: no cell text, tiny labels, rotated to reduce clutter
+pairs(
+  TT,
+  shade    = TRUE,                         # residual shading (red/blue)
+  gp       = vcd::shading_Friendly,
+  labeling = vcd::labeling_border(         # only borders + axis labels
+    varnames    = TRUE,
+    rot_labels  = c(0, 90, 0, 90),         # rotate right/left
+    gp_varnames = gpar(fontface = "bold", cex = 0.9),
+    gp_labels   = gpar(cex = 0.55)         # make level labels small
+  )
+)
+```
+#Revise d) again
+
+### 3. Wait List
+
+[12 points]
+
+a) The file `stats_wl.csv` contains information about waitlist movement for a Columbia University undergraduate statistics class.
+
+There are 640 rows and 4 variables:
+
+`Name` -- name of student (actual names were replaced with names generated from the **randomNames** package)
+
+`Date` -- date of recording of waitlist positions (assume end of day after all movement for that day has been completed)
+
+`Priority` -- position in waitlist, for example `1` = top position on list
+
+`Status` -- **final** outcome, *Registered* = received a place in class and remained; *Dropped Class* = received a place in class and left; *Left List* = left waiting list; *Joined* = remained on waiting list at the end of the change of program period. (Note that the status reflects what ultimately happened, *not what the status was on a particular date.*)
+```{r}
+wl <- read.csv("/Users/base/Desktop/Columbia Documents/Courswork/EDAV/Assignments/stats_wl.csv")
+View(wl)
+summary(wl)
+```
+Create an alluvial diagram using the **ggalluvial** package that shows waitlist movement during the change of program period. It is not necessary to include the `Name` column in the diagram, but it should be possible to observe movement of individual students: for example, that the student who was 22nd in the waitlist on Sept 9th moved up to 15th place on Sept 16th and then left the list. If a student left the list, the alluvium should end ("ghosting"). Note that due to the consistent nature of waitlist movement (one can't move down), the alluvia should not cross at all. The top position should be on top. Color by `Status`. 
+
+Let's create a basic alluvium plot and then intuitively tidy it.
+
+1. Basic alluvium plot code:
+
+```{r}
+
+wl <- readr::read_csv("stats_wl.csv") %>%
+  #Creating my factor labels
+  mutate(
+    Date     = as.Date(Date),
+    Priority = as.integer(Priority),
+    Status   = factor(Status,
+                      levels = c("Registered","Dropped Class","Left List","Joined"))
+  )
+
+
+wl_day <- wl %>%
+  group_by(Name, Date) %>%
+  summarise(
+    Priority = min(Priority, na.rm = TRUE),
+    Status   = dplyr::first(Status),
+    .groups  = "drop"
+  )
+
+# downward check
+bad <- wl_day %>% arrange(Name, Date) %>% group_by(Name) %>%
+  summarize(down = any(diff(Priority) > 0, na.rm = TRUE), .groups = "drop") %>%
+  filter(down)
+if (nrow(bad)) stop("Downward movement detected for: ", paste(bad$Name, collapse = ", ")) #unnecessary but acts as a debug check
+
+
+date_lvls <- wl_day %>% distinct(Date) %>% arrange(Date) %>% pull(Date)
+prio_lvls <- sort(unique(wl_day$Priority), decreasing = TRUE)  
+lodes <- wl_day %>%
+  mutate(
+    x        = factor(Date, levels = date_lvls),
+    stratum  = factor(Priority, levels = prio_lvls),
+    alluvium = Name,
+    y        = 1
+  )
+
+ggplot(lodes,
+       aes(x = x, y = y, alluvium = alluvium, stratum = stratum, fill = Status)) +
+  geom_alluvium(alpha = 0.6, linewidth = 0,
+                curve_type = "xspline", spline_shape = 0.25) +
+  geom_stratum(width = 0.5, fill = "white", color = "black", linewidth = 0.5) +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum)), size = 2.2, vjust = 1.2)+
+  scale_x_discrete(name = "Date") +
+  scale_y_continuous(name = "Students", expand = c(0,0)) +
+  scale_fill_manual(
+    values = c("Registered"="#2ca25f","Dropped Class"="#fb6a4a",
+               "Left List"="#9e9ac8","Joined"="#3182bd"),
+    name = "Final status"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor   = element_blank()
+  )
+```
+It can be observed that there is no crossing of alluvium flow.
+
+2) Making the plot more readable:
+
+```{r}
+wl <- readr::read_csv("stats_wl.csv") %>%
+  mutate(
+    Date     = as.Date(Date),
+    Priority = as.integer(Priority),
+    Status   = factor(Status,
+                      levels = c("Registered","Dropped Class","Left List","Joined"))
+  )
+
+wl_day <- wl |>
+  group_by(Name, Date) |>
+  summarise(Priority = min(Priority, na.rm = TRUE),
+            Status   = dplyr::first(Status), .groups = "drop")
+
+
+u_dates <- wl_day |> distinct(Date) |> arrange(Date) |>
+  mutate(idx = row_number(), phase_id = ceiling(idx / 3))
+
+phase_labs <- u_dates |>
+  group_by(phase_id) |>
+  summarise(
+    start = min(Date), end = max(Date), .groups = "drop"
+  ) |>
+  mutate(
+    phase_lab = paste0("Dates ",
+                       format(start, "%b %d"), "–", format(end, "%b %d"))
+  )
+
+dates_tbl <- u_dates |> left_join(phase_labs, by = "phase_id")
+
+# map dates into bands
+wl_d3 <- wl_day %>%
+  mutate(
+    dom = lubridate::day(Date),                       
+    phase_id  = dplyr::case_when(
+      dplyr::between(dom,  9, 11) ~ 1L,
+      dplyr::between(dom, 12, 14) ~ 2L,
+      dplyr::between(dom, 15, 17) ~ 3L,
+      dplyr::between(dom, 18, 20) ~ 4L,
+      dplyr::between(dom, 20, 22) ~ 5L,
+      TRUE                        ~ NA_integer_
+    ),
+    phase_lab = factor(
+      c("09–11","12–14","15–17","18–20","20-22")[phase_id],
+      levels = c("09–11","12–14","15–17","18–20","20-22")
+    )
+  ) %>%
+
+  filter(!is.na(phase_id)) %>%
+
+  group_by(Name, phase_id, phase_lab) %>%
+  summarise(
+    Priority = min(Priority, na.rm = TRUE),
+    Status   = dplyr::first(Status),
+    .groups  = "drop"
+  )
+
+# downward check
+bad <- wl_d3 %>% arrange(Name, phase_id) %>% group_by(Name) %>%
+  summarise(down = any(diff(Priority) > 0, na.rm = TRUE), .groups = "drop") %>%
+  filter(down)
+if (nrow(bad)) stop("Downward movement detected for: ", paste(bad$Name, collapse = ", "))
+
+
+# priority bands
+wl_d3 <- wl_d3 %>%
+  mutate(PriorityBand = case_when(
+           Priority == 1  ~ "Top (1)",
+           Priority <= 5  ~ "High (2–5)",
+           Priority <= 10 ~ "Mid (6–10)",
+           Priority <= 20 ~ "Low (11–20)",
+           TRUE           ~ "Very Low (21+)"
+         ),
+         PriorityBand = factor(PriorityBand,
+                               levels = c("Very Low (21+)", "Low (11–20)",
+                                          "Mid (6–10)", "High (2–5)", "Top (1)"))
+  )
+
+# 
+phase_lvls <- wl_d3 %>% distinct(phase_id, phase_lab) %>% arrange(phase_id) %>% pull(phase_lab)
+
+lodes <- wl_d3 %>%
+  mutate(x = factor(phase_lab, levels = phase_lvls)) %>%
+  arrange(x, PriorityBand, Priority, Name) %>%
+  transmute(x, y = 1, alluvium = Name, stratum = PriorityBand, Status)
+
+
+```
+```{r}
+
+ggplot(lodes,
+       aes(x = x, y = y, alluvium = alluvium, stratum = stratum, fill = Status)) +
+  geom_alluvium(alpha = 0.8, linewidth = 0) +
+  geom_stratum(width = 0.7, fill = "white", color = "black", linewidth = 0.5) +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum)), size = 2.2, vjust = 0.5) + #adjusting the position and size of text in each category
+  scale_x_discrete(name = "Date Phases (each band = 3 recorded dates)") +
+  scale_y_continuous(name = "Students", expand = expansion(mult = c(0, .02))) +
+  scale_fill_manual(
+    values = c("Registered"="#2ca25f","Dropped Class"="#fb6a4a",
+               "Left List"="#9e9ac8","Joined"="#3182bd"),
+    drop = FALSE, name = "Final status"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor   = element_blank())
+```
+Note points:
+1. Ghosting is natural. When a student leaves the list, the alluvium ends because they have no rows on later dates.
+2. I had to bin the Priority as factor to avoid a cluttered plot.
+3. I also bucketed the date ranges into a number of dates to reduce clutter on the x axis.
+4. There is some crossing observed in the cleaner plot, but that is unrelated to downward movement. It is because after grouping priority levels, there is mismatch in heights of each band for a date range with respect to a previous or later date. But every movement is seen to be only from a lower band to an upper band, or in case of no change, across the same band.
+
+This imitates a cleaner plot.
+
+b) How many students joined the waiting list on Sept 14? How many left?
+
+Highlighting students who have joined and left on Sep 14 by performing a simple filter
+
+```{r}
+joined_names <- wl %>%
+  group_by(Name) %>% summarise(first_date = min(Date), .groups="drop") %>%
+  filter(first_date == as.Date("2021-09-14")) %>% pull(Name)
+left_names <- wl %>%
+  group_by(Name) %>% summarise(last_date = max(Date), Status = first(Status), .groups="drop") %>%
+  filter(Status == "Left List", last_date == as.Date("2021-09-14")) %>% pull(Name)
+
+
+joined_names; left_names
+
+lodes_hi <- lodes %>%
+  mutate(flag = case_when(
+    alluvium %in% joined_names ~ "Joined 9/14",
+    alluvium %in% left_names   ~ "Left 9/14",
+    TRUE                       ~ "Other"
+  ))
+
+ggplot(lodes_hi,
+       aes(x, y, alluvium = alluvium, stratum = stratum, fill = Status,
+           alpha = flag)) +
+  geom_alluvium(linewidth = 0) +
+  geom_stratum(width = 0.35, fill = "white", color = "grey40") +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum)), size = 3.2, vjust = 1.1) +
+  scale_alpha_manual(values = c("Joined 9/14" = 0.95, "Left 9/14" = 0.95, "Other" = 0.15), guide = "none") +
+  scale_fill_manual(values = c("Registered"="#2ca25f","Dropped Class"="#fb6a4a",
+                               "Left List"="#9e9ac8","Joined"="#3182bd"),
+                    drop = FALSE, name = "Final status") +
+  labs(x = "Date Phases (each band= 3 recorded dates)", y = "Students",
+       subtitle = "Highlighted: Joined or Left on Sep 14") +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid.major.x = element_blank(), panel.grid.minor = element_blank())
+```
+Observation: 
+1. Number of people who joined on Sep 14 are 4 : "Brandon","Jeffrey","Jorge","Kendall"
+2. Number of people who left on Sept 14 are 2: "Alexander","Hanlu"
+
+c) Describe two noteworthy trends in the data based on the graph.
+
+Analyzing the plot, we notice the following expected and conclusive data trends:
+1. The column heights of bands reduce as we move along the dates, because students are moving along in the waitlist. 
+2.The joined numbers thin indicating that the wait-list is shrinking with days, the registered numbers become thicker with days, and dropped class numbers are rare.
+  
+d) Assume the earliest date is the first day of classes and the latest date shown in the last day of change of program period, when waitlists close. How would you describe a student's chance of getting in this class based on the graph?
+
+Chances of a student getting accepted improve if the student starts with a good priority rank in the early dates and decrease with time.
+Based on that I can point out that students who are closer to the x axis in the bottom left section stand a better chance and it decreases as they move diagonally to the right, away from the axes.
+
+### 4. Community Districts
+
+[16 points]
+
+For this question we’ll use a subset of data from a survey on NYC attitudes toward various quality of life issues. The source of the data is: [https://cbcny.org/sites/default/files/media/files/Manhattan%20Community%20District%20Results.pdf](https://cbcny.org/sites/default/files/media/files/Manhattan%20Community%20District%20Results.pdf)
+
+a) Use a **reproducible** (scripted) method of your choice to extract data from the pdf and save it in a `.csv` file. Your data file should contain the following: non-safety QoL indicators for the 12 Manhattan community districts. Upload the `.csv` file with your assignment.
+
+I tried using python and java tabulizer because the coding for those was simpler, but they all gave rather complex results with nulls populating in my csv table. Eventually, I tried pdf tools to convert pdf to csv. That was successful.
+Points to note:
+1. Reading as a process of byte streaming was very hard and had inaccuracies in my data.
+2. I used normalize_txt() to convert everything to lower case to avoid mismatch problems
+3. Normalized special character inserts while reading by replacing them with a plain text characters. Most special characters were previously giving me error data.
+```{r}
+suppressPackageStartupMessages({
+  library(readr)
+  library(dplyr)
+  library(stringr)
+  library(tidyr)
+  library(purrr)
+})
+
+pdf_url <- "https://cbcny.org/sites/default/files/media/files/Manhattan%20Community%20District%20Results.pdf"
+out_csv <- "manhattan_qol_non_safety_by_cd.csv"
+
+indicators <- c(
+  "Availability of health care services",
+  "Neighborhood parks",
+  "Neighborhood playgrounds",
+  "Availability of cultural activities",
+  "Cleanliness of your neighborhood",
+  "Rat control",
+  "Control of street noise",
+  "Air quality",
+  "Traffic"
+)
+
+#Normalizing text into clean format
+normalize_txt <- function(s) {
+  s <- tolower(as.character(s))
+  s <- gsub("[\u2013\u2014\u2212]", "-", s, perl = TRUE)   
+  s <- gsub("[\u00A0\u2007\u202F]", " ", s, perl = TRUE)   
+  str_squish(s)
+}
+
+#Numeric check
+to_num <- function(s) suppressWarnings(as.numeric(gsub("[^0-9.]", "", s)))
+
+# We’ll match by a tolerant regex built from the indicator words
+ind_regex <- function(label) {
+  w <- str_split(normalize_txt(label), "\\s+")[[1]]
+  # take first 2–3 distinctive words to avoid accidental matches
+  w <- w[!w %in% c("of","the","your","and","in","to","for","a","on","with","control","availability")]
+  w <- head(w, 3); if (length(w) == 0) w <- head(str_split(normalize_txt(label), "\\s+")[[1]], 2)
+  paste0("(?i)", paste0("(", w, ")"), collapse = ".*?") # building the exact category
+}
+tmp_pdf <- tempfile(fileext = ".pdf")
+download.file(pdf_url, tmp_pdf, mode = "wb", quiet = TRUE)
+stopifnot(file.exists(tmp_pdf), file.info(tmp_pdf)$size > 0)
+pages <- pdf_data(tmp_pdf)
+lines_df <- imap_dfr(pages, function(pg, pno) {
+  if (!nrow(pg)) return(tibble())
+  pg <- pg %>% mutate(text = str_squish(text))
+  pg <- pg %>% mutate(y_line = round(y/2)*2)
+  line_text <- pg %>%
+    arrange(y_line, x) %>%
+    group_by(y_line) %>%
+    summarise(
+      line_txt = paste(text, collapse = " "),
+      words_x  = list(x),
+      words_tx = list(text),
+      .groups = "drop"
+    )
+  line_text <- line_text %>%
+    mutate(
+      pct_idx = map(words_tx, ~ which(is_pct(.x))),
+      pct_tx  = map2(words_tx, pct_idx, ~ .x[.y]),
+      pct_x   = map2(words_x,  pct_idx, ~ .x[.y])
+    )
+  mutate(line_text, page = pno) %>% select(page, y_line, line_txt, pct_tx, pct_x)
+})
+
+
+pages_txt <- pdf_text(tmp_pdf)
+ns_pages  <- which(grepl("QUALITY\\s+OF\\s+LIFE\\s*:\\s*NON.*SAFETY\\s+INDICATORS", pages_txt, ignore.case = TRUE))
+keep_pages <- sort(unique(c(ns_pages, ns_pages + 1)))
+lines_df   <- lines_df %>% filter(page %in% keep_pages)
+lines_df <- lines_df %>% arrange(page, y_line)
+collect_12_ahead <- function(start_page, start_y) {
+  # all lines >= start (page, y_line)
+  block <- lines_df %>%
+    filter(page > start_page | (page == start_page & y_line >= start_y)) %>%
+    arrange(page, y_line)
+  # flatten pct tokens in visual order
+  pcts <- unlist(block$pct_tx, use.names = FALSE)
+  # keep first 12
+  pcts <- head(pcts, 12)
+  if (length(pcts) < 12) pcts <- c(pcts, rep(NA_character_, 12 - length(pcts)))
+  pcts
+}
+
+# For each indicator, find its first matching line, then collect 12 percentages after it
+find_indicator_values <- function(label) {
+  rx <- ind_regex(label)
+  hit <- lines_df %>%
+    filter(grepl(rx, normalize_txt(line_txt), perl = TRUE)) %>%
+    arrange(page, y_line) %>%
+    slice_head(n = 1)
+  if (!nrow(hit)) return(rep(NA_real_, 12))
+  vals <- collect_12_ahead(hit$page, hit$y_line)
+  as.numeric(gsub("[^0-9.]", "", vals))
+}
+
+# Build a matrix: rows=CD1..CD12, cols=the 9 indicators
+mat <- sapply(indicators, find_indicator_values, simplify = "matrix")
+# ensure numeric
+mat <- apply(mat, 2, function(col) suppressWarnings(as.numeric(col)))
+
+# Shape to tidy 10-column output
+out <- as_tibble(mat) %>%
+  setNames(indicators) %>%
+  mutate(CD = paste0("CD", 1:12)) %>%
+  relocate(CD)
+
+# Write + preview
+write_csv(out, out_csv)
+message("Saved -> ", normalizePath(out_csv))
+print(out)
+```
+b) Draw a PCA biplot using the **redav** package [https://github.com/jtr13/redav](https://github.com/jtr13/redav) In the biplot, the vectors should be the indicators and the points the community districts.
+
+```{r}
+suppressPackageStartupMessages({
+  library(readr); library(dplyr); library(redav)
+})
+dat <- readr::read_csv("manhattan_qol_non_safety_by_cd.csv", show_col_types = FALSE) %>%
+  mutate(across(-CD, ~ as.numeric(gsub("[^0-9.]", "", as.character(.x))))) %>%
+  arrange(factor(CD, levels = paste0("CD", 1:12))) %>%
+  relocate(CD)
+
+# NA check
+dat[num_cols] <- lapply(dat[num_cols], function(v) {
+  ifelse(is.na(v), mean(v, na.rm=TRUE), v)
+})
+
+draw_biplot(
+  dat,
+  arrows      = TRUE,   #check that all variable vectors are displayed
+  fix_sign    = TRUE,   
+  point_size  = 2.2,  
+  label_size  = 3.0,   
+)
+```
+
+Observations:
+1. X axis is the direction of greatest variation across CDs. When we move right, the CD values have higher values on amenities that point to the right.Opposite markers show lower values in other amenities.(The most variance of districts)
+2. Y axis is the secondary contrast of spread of amenities. For example districts that compare Traffic and Rat Control, and separates the districts based on the contrast of those amenities.
+
+Based your answers to c) - e) on your graph.
+
+c) Which indicator is most positively correlated with Control of street noise? Which indicator is most negatively correlated with Rat control?
+Most positively correlated to Control of Street noise is Neighborhood PLaygrounds because its vector has the smallest angle with respect to control of street noise (almost 0 degree). 
+Most negatively correlated to Rat Control would be Availability of Health Care Services (greater than 180).
+
+d) What clusters do you observe?
+
+
+e) Which district would you choose to live in based on the biplot? Why?
+
+
+f) Draw another biplot of the data in which the `Traffic` indicator is calibrated. What is the order of the projected points from lowest to highest along this dimension? How does this order compare to the true order found in the original data?
+
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
